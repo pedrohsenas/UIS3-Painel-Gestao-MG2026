@@ -94,7 +94,6 @@ function urlFotoPrincipal(m) {
   return f ? dbUrlFoto(f.caminho_storage) : null;
 }
 
-
 function renderTabelaMaquinas(lista) {
   const el = document.getElementById('maq-lista');
   if (!el) return;
