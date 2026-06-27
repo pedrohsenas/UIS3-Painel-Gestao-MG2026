@@ -259,3 +259,26 @@ async function dbListarMaquinasComFoto(filtro = {}) {
   if (error) throw error;
   return data;
 }
+
+async function dbDefinirFotoPrincipal(maquinaId, fotoId) {
+  const { error } = await sb.from('maquinas')
+    .update({ foto_principal_id: fotoId, atualizado_em: new Date().toISOString() })
+    .eq('id', maquinaId);
+  if (error) throw error;
+}
+
+async function dbListarMaquinasComFoto(filtro = {}) {
+  let q = sb.from('maquinas')
+    .select('*, etapas(status), fotos(id, caminho_storage)')
+    .order('tag');
+  if (filtro.ex === true) q = q.eq('ex', true);
+  if (filtro.ex === false) q = q.eq('ex', false);
+  if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
+  if (filtro.tipos) q = q.in('tipo', filtro.tipos);
+  if (filtro.status) q = q.eq('status', filtro.status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+
