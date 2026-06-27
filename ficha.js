@@ -215,9 +215,8 @@ function renderGaleria(fotos, gestor) {
   if (!fotos.length) return '<p class="page-sub">Nenhuma foto</p>';
   return fotos.map(f => `
     <div class="foto-thumb-painel">
-      <a href="${dbUrlFoto(f.caminho_storage)}" target="_blank">
-        <img src="${dbUrlFoto(f.caminho_storage)}" loading="lazy" alt="foto" />
-      </a>
+      <img src="${dbUrlFoto(f.caminho_storage)}" loading="lazy" alt="foto"
+     style="cursor:zoom-in" onclick="abrirVisor('${dbUrlFoto(f.caminho_storage)}')" />
       ${gestor ? `<button class="foto-del-painel" onclick="excluirFotoFicha('${f.id}','${f.caminho_storage}')">✕</button>` : ''}
     </div>`).join('');
 }
