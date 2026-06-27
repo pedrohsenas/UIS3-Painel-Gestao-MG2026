@@ -21,6 +21,7 @@ if (typeof window.viTelaEtapa === 'undefined') {
 
 // Rotas de V&I
 window.VI_ROTAS = {
+  vi_dashboard: () => viTelaDashboard(),
   vi_equip:     () => viTelaEquip(),
   vi_matriz:    () => viTelaMatriz(),
   vi_prazos:    () => viTelaPrazos(),
