@@ -213,12 +213,32 @@ const NOMES_ETAPAS = {
 
 function renderGaleria(fotos, gestor) {
   if (!fotos.length) return '<p class="page-sub">Nenhuma foto</p>';
-  return fotos.map(f => `
-    <div class="foto-thumb-painel">
+  // Determina qual é a principal: a definida, ou a primeira foto da máquina (padrão)
+  const todas = fichaAtual.fotos || [];
+  let principalId = fichaAtual.foto_principal_id;
+  if (!principalId && todas.length) principalId = todas[0].id;
+  return fotos.map(f => {
+    const ehPrincipal = f.id === principalId;
+    return `
+    <div class="foto-thumb-painel ${ehPrincipal ? 'eh-principal' : ''}">
       <img src="${dbUrlFoto(f.caminho_storage)}" loading="lazy" alt="foto"
      style="cursor:zoom-in" onclick="abrirVisor('${dbUrlFoto(f.caminho_storage)}')" />
+      <button class="foto-principal-btn ${ehPrincipal ? 'ativa' : ''}"
+        title="${ehPrincipal ? 'Foto principal' : 'Definir como foto principal'}"
+        onclick="definirPrincipal('${f.id}', ${ehPrincipal})">★</button>
       ${gestor ? `<button class="foto-del-painel" onclick="excluirFotoFicha('${f.id}','${f.caminho_storage}')">✕</button>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+async function definirPrincipal(fotoId, jaEhPrincipal) {
+  if (jaEhPrincipal) return;
+  if (!confirm('Definir esta foto como a imagem principal da máquina?\n\nEla será exibida na lista de máquinas.')) return;
+  try {
+    await dbDefinirFotoPrincipal(fichaAtual.id, fotoId);
+    fichaAtual = await dbMaquina(fichaAtual.id);
+    renderFicha();
+  } catch (e) { alert('Erro: ' + e.message); }
 }
 
 async function salvarFicha() {
