@@ -2,6 +2,22 @@
 // ─── db.js — camada de dados (Supabase) ───────────────────────────────
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// ── Helper de paginação: busca TODAS as linhas, contornando o teto de 1000 ──
+async function dbBuscarTudo(builderFn) {
+  const PASSO = 1000;
+  let inicio = 0, todos = [];
+  while (true) {
+    const { data, error } = await builderFn().range(inicio, inicio + PASSO - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todos = todos.concat(data);
+    if (data.length < PASSO) break;
+    inicio += PASSO;
+  }
+  return todos;
+}
+
+
 // ── Autenticação ──
 async function dbLogin(email, senha) {
   const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
@@ -81,15 +97,15 @@ function dbUrlFoto(caminho) {
 
 // ═══ FASE 2 — Máquinas ═══════════════════════════════════════════════
 async function dbListarMaquinas(filtro = {}) {
-  let q = sb.from('maquinas').select('*, etapas(status)').order('tag');
-  if (filtro.ex === true) q = q.eq('ex', true);
-  if (filtro.ex === false) q = q.eq('ex', false);
-  if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
-  if (filtro.tipos) q = q.in('tipo', filtro.tipos);
-  if (filtro.status) q = q.eq('status', filtro.status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('maquinas').select('*, etapas(status)').order('tag');
+    if (filtro.ex === true) q = q.eq('ex', true);
+    if (filtro.ex === false) q = q.eq('ex', false);
+    if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
+    if (filtro.tipos) q = q.in('tipo', filtro.tipos);
+    if (filtro.status) q = q.eq('status', filtro.status);
+    return q;
+  });
 }
 
 async function dbMaquina(id) {
@@ -154,16 +170,16 @@ async function dbRegistrarFotoEtapa(maquina_id, etapa_id, caminho_storage) {
 
 // ═══ FASE 4 — Matriz de lançamento ═══════════════════════════════════
 async function dbMaquinasComEtapas(filtro = {}) {
-  let q = sb.from('maquinas')
-    .select('id, tag, ex, tipo, area, etapas(id, codigo, ordem, status), servicos_planejados(servico)')
-    .eq('status', 'ativa').order('tag');
-  if (filtro.ex === true) q = q.eq('ex', true);
-  if (filtro.ex === false) q = q.eq('ex', false);
-  if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
-  if (filtro.tipos) q = q.in('tipo', filtro.tipos);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('maquinas')
+      .select('id, tag, ex, tipo, area, etapas(id, codigo, ordem, status), servicos_planejados(servico)')
+      .eq('status', 'ativa').order('tag');
+    if (filtro.ex === true) q = q.eq('ex', true);
+    if (filtro.ex === false) q = q.eq('ex', false);
+    if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
+    if (filtro.tipos) q = q.in('tipo', filtro.tipos);
+    return q;
+  });
 }
 
 async function dbConcluirEtapasLote(ids, dataLancamento) {
@@ -179,16 +195,16 @@ async function dbConcluirEtapasLote(ids, dataLancamento) {
 
 // ═══ FASE 5 — Prazos em massa e Dashboard ════════════════════════════
 async function dbEtapasResumo(filtroMaq = {}) {
-  let q = sb.from('etapas')
-    .select('id, codigo, status, prazo, concluido_em, maquinas!inner(id, tipo, ex, status, area)')
-    .eq('maquinas.status', 'ativa');
-  if (filtroMaq.ex === true) q = q.eq('maquinas.ex', true);
-  if (filtroMaq.ex === false) q = q.eq('maquinas.ex', false);
-  if (filtroMaq.tipo) q = q.eq('maquinas.tipo', filtroMaq.tipo);
-  if (filtroMaq.tipos) q = q.in('maquinas.tipo', filtroMaq.tipos);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('etapas')
+      .select('id, codigo, status, prazo, concluido_em, maquinas!inner(id, tipo, ex, status, area)')
+      .eq('maquinas.status', 'ativa');
+    if (filtroMaq.ex === true) q = q.eq('maquinas.ex', true);
+    if (filtroMaq.ex === false) q = q.eq('maquinas.ex', false);
+    if (filtroMaq.tipo) q = q.eq('maquinas.tipo', filtroMaq.tipo);
+    if (filtroMaq.tipos) q = q.in('maquinas.tipo', filtroMaq.tipos);
+    return q;
+  });
 }
 
 async function dbDefinirPrazosLote(maquinaIds, codigo, prazo, apenasVazios) {
@@ -247,15 +263,15 @@ async function dbDefinirFotoPrincipal(maquinaId, fotoId) {
 }
 
 async function dbListarMaquinasComFoto(filtro = {}) {
-  let q = sb.from('maquinas')
-    .select('*, etapas(status), fotos!fotos_maquina_id_fkey(id, caminho_storage)')
-    .order('tag');
-  if (filtro.ex === true) q = q.eq('ex', true);
-  if (filtro.ex === false) q = q.eq('ex', false);
-  if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
-  if (filtro.tipos) q = q.in('tipo', filtro.tipos);
-  if (filtro.status) q = q.eq('status', filtro.status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('maquinas')
+      .select('*, etapas(status), fotos!fotos_maquina_id_fkey(id, caminho_storage)')
+      .order('tag');
+    if (filtro.ex === true) q = q.eq('ex', true);
+    if (filtro.ex === false) q = q.eq('ex', false);
+    if (filtro.tipo) q = q.eq('tipo', filtro.tipo);
+    if (filtro.tipos) q = q.in('tipo', filtro.tipos);
+    if (filtro.status) q = q.eq('status', filtro.status);
+    return q;
+  });
 }
