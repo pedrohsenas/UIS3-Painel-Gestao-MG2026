@@ -94,7 +94,7 @@ async function dbListarMaquinas(filtro = {}) {
 
 async function dbMaquina(id) {
   const { data, error } = await sb.from('maquinas')
-    .select('*, etapas(*), fotos!maquina_id(*), servicos_planejados(servico)').eq('id', id).single();
+    .select('*, etapas(*), fotos!fotos_maquina_id_fkey(*), servicos_planejados(servico)').eq('id', id).single();
   if (error) throw error;
   return data;
 }
@@ -248,7 +248,7 @@ async function dbDefinirFotoPrincipal(maquinaId, fotoId) {
 
 async function dbListarMaquinasComFoto(filtro = {}) {
   let q = sb.from('maquinas')
-    .select('*, etapas(status), fotos!maquina_id(id, caminho_storage)')
+    .select('*, etapas(status), fotos!fotos_maquina_id_fkey(id, caminho_storage)')
     .order('tag');
   if (filtro.ex === true) q = q.eq('ex', true);
   if (filtro.ex === false) q = q.eq('ex', false);
