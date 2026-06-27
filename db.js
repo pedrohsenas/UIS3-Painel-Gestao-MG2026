@@ -275,3 +275,17 @@ async function dbListarMaquinasComFoto(filtro = {}) {
     return q;
   });
 }
+
+// ═══ Rolamentos — autocomplete dinâmico ══════════════════════════════
+async function dbSugerirRolamentos(termo) {
+  if (!termo || termo.length < 1) return [];
+  const t = `%${termo}%`;
+  const [d, tr] = await Promise.all([
+    sb.from('maquinas').select('rolamento_dianteiro').ilike('rolamento_dianteiro', t).limit(50),
+    sb.from('maquinas').select('rolamento_traseiro').ilike('rolamento_traseiro', t).limit(50)
+  ]);
+  const set = new Set();
+  (d.data || []).forEach(r => { const v = (r.rolamento_dianteiro || '').trim(); if (v) set.add(v); });
+  (tr.data || []).forEach(r => { const v = (r.rolamento_traseiro || '').trim(); if (v) set.add(v); });
+  return [...set].sort().slice(0, 12);
+}

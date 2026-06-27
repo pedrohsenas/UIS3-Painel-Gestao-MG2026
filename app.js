@@ -19,6 +19,7 @@ function telaDashboard() { telaDashboardReal(); }
 const ROTAS = {
   dashboard:  telaDashboard,
   maquinas:   telaMaquinas,
+  nova_maquina: telaNovaMaquina,
   matriz:     telaMatriz,
   prazos:     telaPrazos,
   servicos:   telaServicos,

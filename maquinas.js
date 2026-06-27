@@ -24,8 +24,9 @@ function telaMaquinas(cat) {
   const c = CATEGORIAS[categoriaAtual];
 
   setConteudo(`
-    <div class="page-head">
+    <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
       <h2>Máquinas</h2>
+      <button class="btn" onclick="telaNovaMaquina()" style="white-space:nowrap">+ Nova Máquina</button>
     </div>
 
     <div class="cat-tabs">
@@ -93,6 +94,7 @@ function urlFotoPrincipal(m) {
   if (!f) f = fotos[0];   // padrão: primeira foto
   return f ? dbUrlFoto(f.caminho_storage) : null;
 }
+
 
 function renderTabelaMaquinas(lista) {
   const el = document.getElementById('maq-lista');

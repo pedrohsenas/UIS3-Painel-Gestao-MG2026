@@ -16,6 +16,10 @@ async function abrirFicha(id) {
   try {
     fichaAtual = await dbMaquina(id);
     renderFicha();
+    if (PERFIL?.papel === 'gestor') {
+      acAtivarRolamento('e-rol-diant');
+      acAtivarRolamento('e-rol-tras');
+    }
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
   }
@@ -124,6 +128,18 @@ function renderFicha() {
         </div>
 
         <div class="card-sec">
+          <h3 class="card-sec-titulo">Rolamentos</h3>
+          <div class="row2">
+            <div class="field"><label>Rolamento dianteiro</label>
+              <input id="e-rol-diant" type="text" value="${escHtml(m.rolamento_dianteiro)}" ${ro}
+                placeholder="ex: 6309-2Z" /></div>
+            <div class="field"><label>Rolamento traseiro</label>
+              <input id="e-rol-tras" type="text" value="${escHtml(m.rolamento_traseiro)}" ${ro}
+                placeholder="ex: 6207-2RS" /></div>
+          </div>
+        </div>
+
+        <div class="card-sec">
           <h3 class="card-sec-titulo">Dimensões (cm)</h3>
           <div class="row3f">
             <div class="field"><label>A — Altura</label>
@@ -171,16 +187,21 @@ function renderFicha() {
       <div class="ficha-col">
         <div class="card-sec">
           <h3 class="card-sec-titulo">Fotos da coleta (${fotosColeta.length})</h3>
-          <div class="foto-galeria">${renderGaleria(fotosColeta, gestor)}</div>
+          <div class="foto-galeria" id="galeria-coleta">${renderGaleria(fotosColeta, gestor)}</div>
+          <label class="add-foto-btn">
+            <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarFotosFicha(this, 'coleta')" />
+            + Adicionar fotos da coleta
+          </label>
         </div>
 
         <div class="card-sec">
           <h3 class="card-sec-titulo">Fotos do painel (${fotosPainel.length})</h3>
           <div class="foto-galeria" id="galeria-painel">${renderGaleria(fotosPainel, gestor)}</div>
+          ${gestor ? `
           <label class="add-foto-btn">
-            <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarFotosFicha(this)" />
-            + Adicionar fotos
-          </label>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarFotosFicha(this, 'painel')" />
+            + Adicionar fotos do painel
+          </label>` : '<p class="page-sub">Apenas o PCM adiciona fotos do painel</p>'}
         </div>
 
         <div class="card-sec">
@@ -265,6 +286,8 @@ async function salvarFicha() {
       fabricante: document.getElementById('e-fabricante').value.trim(),
       modelo: document.getElementById('e-modelo').value.trim(),
       serie: document.getElementById('e-serie').value.trim(),
+      rolamento_dianteiro: document.getElementById('e-rol-diant').value.trim(),
+      rolamento_traseiro: document.getElementById('e-rol-tras').value.trim(),
       dim_alt: num('e-alt'),
       dim_lar: num('e-lar'),
       dim_comp: num('e-comp'),
@@ -318,18 +341,19 @@ function comprimirImagem(file) {
   });
 }
 
-async function adicionarFotosFicha(input) {
+async function adicionarFotosFicha(input, origem) {
+  origem = origem || 'painel';
   const files = Array.from(input.files);
   if (!files.length) return;
-  const galeria = document.getElementById('galeria-painel');
+  const galeria = document.getElementById(origem === 'coleta' ? 'galeria-coleta' : 'galeria-painel');
   galeria.insertAdjacentHTML('beforeend', '<div class="loading"><div class="spinner"></div> Enviando...</div>');
   try {
     for (const file of files) {
       const blob = await comprimirImagem(file);
       const nome = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const caminho = `maquinas/${fichaAtual.id}/painel_${nome}`;
+      const caminho = `maquinas/${fichaAtual.id}/${origem}_${nome}`;
       await dbUploadFoto(caminho, blob);
-      await dbRegistrarFoto(fichaAtual.id, caminho, 'painel');
+      await dbRegistrarFoto(fichaAtual.id, caminho, origem);
     }
     abrirFicha(fichaAtual.id);
   } catch (e) {
