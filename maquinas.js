@@ -60,7 +60,7 @@ async function carregarMaquinas() {
   try {
     const filtro = { ...c.filtro };
     if (statusAtual) filtro.status = statusAtual;
-    const lista = await dbListarMaquinas(filtro);
+    const lista = await dbListarMaquinasComFoto(filtro);
     window._maquinasCache = lista;
     renderTabelaMaquinas(lista);
   } catch (e) {
@@ -85,6 +85,16 @@ function progressoEtapas(etapas) {
   return { done: etapas.filter(e => e.status === 'concluida').length, total: etapas.length };
 }
 
+function urlFotoPrincipal(m) {
+  const fotos = m.fotos || [];
+  if (!fotos.length) return null;
+  let f = null;
+  if (m.foto_principal_id) f = fotos.find(x => x.id === m.foto_principal_id);
+  if (!f) f = fotos[0];   // padrão: primeira foto
+  return f ? dbUrlFoto(f.caminho_storage) : null;
+}
+
+
 function renderTabelaMaquinas(lista) {
   const el = document.getElementById('maq-lista');
   if (!el) return;
@@ -100,7 +110,7 @@ function renderTabelaMaquinas(lista) {
     <div class="tabela-wrap">
       <table class="tabela">
         <thead><tr>
-          <th>TAG</th><th>Tipo</th><th>Área</th><th>Potência</th>
+          <th>TAG</th><th>Tipo</th><th>Área</th><th>Foto</th><th>Potência</th>
           <th>Estado</th><th>Etapas</th><th></th>
         </tr></thead>
         <tbody>
@@ -112,6 +122,13 @@ function renderTabelaMaquinas(lista) {
               <td class="td-mono">${escHtml(m.tag)}${m.ex ? ' <span class="ex-badge">EX</span>' : ''}</td>
               <td>${TIPOS_NOMES[m.tipo] || m.tipo}</td>
               <td>${escHtml(m.area)}${m.localizacao ? '<br><span class="td-sub">' + escHtml(m.localizacao) + '</span>' : ''}</td>
+              <td class="td-foto">${(() => {
+                const url = urlFotoPrincipal(m);
+                return url
+                  ? `<img src="${url}" class="thumb-maq" loading="lazy" alt="foto principal"
+                       onclick="event.stopPropagation();abrirVisor('${url}')" />`
+                  : '<span class="sem-foto">sem foto</span>';
+              })()}</td>
               <td>${m.potencia ? m.potencia + ' ' + (m.unidade_pot || 'kW') : '—'}</td>
               <td><span class="badge-estado ${m.status_coleta}">${({ok:'OK',atencao:'Atenção',critico:'Crítico'})[m.status_coleta] || m.status_coleta}</span></td>
               <td>
