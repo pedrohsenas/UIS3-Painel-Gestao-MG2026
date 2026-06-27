@@ -1,7 +1,7 @@
 'use strict';
 // ─── db.js — camada de dados (Supabase) ───────────────────────────────
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
- 
+
 // ── Autenticação ──
 async function dbLogin(email, senha) {
   const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
@@ -20,7 +20,7 @@ async function dbMeuPerfil() {
   if (error) return null;
   return data;
 }
- 
+
 // ── Importações ──
 async function dbListarImportacoes() {
   const { data, error } = await sb.from('importacoes')
@@ -47,7 +47,7 @@ async function dbExcluirImportacao(id) {
   const { error: e2 } = await sb.from('importacoes').delete().eq('id', id);
   if (e2) throw e2;
 }
- 
+
 // ── Máquinas ──
 async function dbInserirMaquina(m) {
   const { data, error } = await sb.from('maquinas').insert(m).select('id, tag').single();
@@ -60,7 +60,7 @@ async function dbContarMaquinas() {
   if (error) return 0;
   return count;
 }
- 
+
 // ── Fotos ──
 async function dbUploadFoto(caminho, blob) {
   const { error } = await sb.storage.from('fotos').upload(caminho, blob, {
@@ -78,7 +78,7 @@ async function dbRegistrarFoto(maquina_id, caminho_storage, origem) {
 function dbUrlFoto(caminho) {
   return sb.storage.from('fotos').getPublicUrl(caminho).data.publicUrl;
 }
- 
+
 // ═══ FASE 2 — Máquinas ═══════════════════════════════════════════════
 async function dbListarMaquinas(filtro = {}) {
   let q = sb.from('maquinas').select('*, etapas(status)').order('tag');
@@ -91,31 +91,31 @@ async function dbListarMaquinas(filtro = {}) {
   if (error) throw error;
   return data;
 }
- 
+
 async function dbMaquina(id) {
   const { data, error } = await sb.from('maquinas')
-    .select('*, etapas(*), fotos(*), servicos_planejados(servico)').eq('id', id).single();
+    .select('*, etapas(*), fotos!maquina_id(*), servicos_planejados(servico)').eq('id', id).single();
   if (error) throw error;
   return data;
 }
- 
+
 async function dbAtualizarMaquina(id, campos) {
   campos.atualizado_em = new Date().toISOString();
   const { error } = await sb.from('maquinas').update(campos).eq('id', id);
   if (error) throw error;
 }
- 
+
 async function dbExcluirMaquina(id) {
   const { error } = await sb.from('maquinas').delete().eq('id', id);
   if (error) throw error;
 }
- 
+
 async function dbExcluirFoto(fotoId, caminho) {
   await sb.storage.from('fotos').remove([caminho]);
   const { error } = await sb.from('fotos').delete().eq('id', fotoId);
   if (error) throw error;
 }
- 
+
 // ═══ FASE 3 — Etapas ═════════════════════════════════════════════════
 async function dbEtapaDetalhe(id) {
   const { data, error } = await sb.from('etapas')
@@ -124,26 +124,26 @@ async function dbEtapaDetalhe(id) {
   if (error) throw error;
   return data;
 }
- 
+
 async function dbAtualizarEtapa(id, campos) {
   campos.atualizado_em = new Date().toISOString();
   const { error } = await sb.from('etapas').update(campos).eq('id', id);
   if (error) throw error;
 }
- 
+
 async function dbConfirmarServico(etapa_id, servico) {
   const sess = await dbSessao();
   const { error } = await sb.from('servicos_realizados')
     .insert({ etapa_id, servico, confirmado_por: sess.user.id });
   if (error) throw error;
 }
- 
+
 async function dbRemoverServico(etapa_id, servico) {
   const { error } = await sb.from('servicos_realizados')
     .delete().eq('etapa_id', etapa_id).eq('servico', servico);
   if (error) throw error;
 }
- 
+
 async function dbRegistrarFotoEtapa(maquina_id, etapa_id, caminho_storage) {
   const sess = await dbSessao();
   const { error } = await sb.from('fotos').insert({
@@ -151,7 +151,7 @@ async function dbRegistrarFotoEtapa(maquina_id, etapa_id, caminho_storage) {
   });
   if (error) throw error;
 }
- 
+
 // ═══ FASE 4 — Matriz de lançamento ═══════════════════════════════════
 async function dbMaquinasComEtapas(filtro = {}) {
   let q = sb.from('maquinas')
@@ -165,7 +165,7 @@ async function dbMaquinasComEtapas(filtro = {}) {
   if (error) throw error;
   return data;
 }
- 
+
 async function dbConcluirEtapasLote(ids, dataLancamento) {
   const agora = new Date().toISOString();
   const concluido = dataLancamento
@@ -176,7 +176,7 @@ async function dbConcluirEtapasLote(ids, dataLancamento) {
     .in('id', ids);
   if (error) throw error;
 }
- 
+
 // ═══ FASE 5 — Prazos em massa e Dashboard ════════════════════════════
 async function dbEtapasResumo(filtroMaq = {}) {
   let q = sb.from('etapas')
@@ -190,7 +190,7 @@ async function dbEtapasResumo(filtroMaq = {}) {
   if (error) throw error;
   return data;
 }
- 
+
 async function dbDefinirPrazosLote(maquinaIds, codigo, prazo, apenasVazios) {
   let q = sb.from('etapas')
     .update({ prazo, atualizado_em: new Date().toISOString() })
@@ -200,14 +200,14 @@ async function dbDefinirPrazosLote(maquinaIds, codigo, prazo, apenasVazios) {
   const { error } = await q;
   if (error) throw error;
 }
- 
+
 // ═══ AJUSTES — perfis, serviços planejados ═══════════════════════════
 async function dbListarPerfis() {
   const { data, error } = await sb.from('perfis').select('id, nome, papel').order('nome');
   if (error) throw error;
   return data;
 }
- 
+
 async function dbPlanejarServico(maquina_id, servico) {
   const sess = await dbSessao();
   const { error } = await sb.from('servicos_planejados')
@@ -215,13 +215,13 @@ async function dbPlanejarServico(maquina_id, servico) {
       { onConflict: 'maquina_id,servico', ignoreDuplicates: true });
   if (error) throw error;
 }
- 
+
 async function dbRemoverServicoPlanejado(maquina_id, servico) {
   const { error } = await sb.from('servicos_planejados')
     .delete().eq('maquina_id', maquina_id).eq('servico', servico);
   if (error) throw error;
 }
- 
+
 async function dbPlanejarServicosLote(maquinaIds, servicos) {
   const sess = await dbSessao();
   const linhas = [];
@@ -231,13 +231,13 @@ async function dbPlanejarServicosLote(maquinaIds, servicos) {
     .upsert(linhas, { onConflict: 'maquina_id,servico', ignoreDuplicates: true });
   if (error) throw error;
 }
- 
+
 async function dbRemoverServicosLote(maquinaIds, servicos) {
   const { error } = await sb.from('servicos_planejados')
     .delete().in('maquina_id', maquinaIds).in('servico', servicos);
   if (error) throw error;
 }
- 
+
 // ═══ Foto principal ══════════════════════════════════════════════════
 async function dbDefinirFotoPrincipal(maquinaId, fotoId) {
   const { error } = await sb.from('maquinas')
@@ -245,10 +245,10 @@ async function dbDefinirFotoPrincipal(maquinaId, fotoId) {
     .eq('id', maquinaId);
   if (error) throw error;
 }
- 
+
 async function dbListarMaquinasComFoto(filtro = {}) {
   let q = sb.from('maquinas')
-    .select('*, etapas(status), fotos(id, caminho_storage)')
+    .select('*, etapas(status), fotos!maquina_id(id, caminho_storage)')
     .order('tag');
   if (filtro.ex === true) q = q.eq('ex', true);
   if (filtro.ex === false) q = q.eq('ex', false);
