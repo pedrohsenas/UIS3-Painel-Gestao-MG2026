@@ -249,23 +249,50 @@ function expFotoFavoritaUrl(m) {
   return f ? dbUrlFoto(f.caminho_storage) : null;
 }
 
-function carregarImagemDataURL(url) {
+function _imgParaDataURL(img) {
+  const cv = document.createElement('canvas');
+  const MAX = 700;
+  let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (!w || !h) return null;
+  if (w > MAX || h > MAX) { if (w>h){h=Math.round(h*MAX/w);w=MAX;} else {w=Math.round(w*MAX/h);h=MAX;} }
+  cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  return { dataUrl: cv.toDataURL('image/jpeg', 0.85), w, h };
+}
+
+// Carrega via fetch->blob->dataURL (contorna CORS de cache e taint do canvas)
+async function carregarImagemDataURL(url) {
+  // 1ª tentativa: fetch do blob (Supabase público envia CORS em requisições fetch)
+  try {
+    const resp = await fetch(url, { mode: 'cors', cache: 'reload' });
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const dataUrlOrig = await new Promise(res => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = () => res(null);
+        fr.readAsDataURL(blob);
+      });
+      if (dataUrlOrig) {
+        const img = await new Promise(res => {
+          const im = new Image();
+          im.onload = () => res(im);
+          im.onerror = () => res(null);
+          im.src = dataUrlOrig;
+        });
+        if (img) { const r = _imgParaDataURL(img); if (r) return r; }
+      }
+    }
+  } catch (e) { /* cai no fallback */ }
+
+  // 2ª tentativa: Image com crossOrigin e cache-busting
   return new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const cv = document.createElement('canvas');
-        const MAX = 700;
-        let w = img.width, h = img.height;
-        if (w > MAX || h > MAX) { if (w>h){h=Math.round(h*MAX/w);w=MAX;} else {w=Math.round(w*MAX/h);h=MAX;} }
-        cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve({ dataUrl: cv.toDataURL('image/jpeg', 0.85), w, h });
-      } catch (e) { resolve(null); }
-    };
+    img.onload = () => { try { resolve(_imgParaDataURL(img)); } catch (e) { resolve(null); } };
     img.onerror = () => resolve(null);
-    img.src = url;
+    const sep = url.includes('?') ? '&' : '?';
+    img.src = url + sep + '_cb=' + Date.now();
   });
 }
 
