@@ -21,7 +21,7 @@
     ov.id = 'visor-overlay';
     ov.innerHTML = `
       <div class="visor-barra">
-        <span class="visor-dica">Pinça ou scroll para zoom · arraste para mover</span>
+        <span class="visor-dica">PC: scroll do mouse para zoom e arrastar · Mobile: pinça e arraste para mover</span>
         <button class="visor-fechar" aria-label="Fechar">✕</button>
       </div>
       <div class="visor-palco" id="visor-palco">
