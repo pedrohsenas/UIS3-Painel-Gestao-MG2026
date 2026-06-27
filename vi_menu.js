@@ -59,6 +59,16 @@ function viInjetarMenu() {
   sep.className = 'vi-menu-sep';
   sep.textContent = 'Válvulas & Instrumentos';
 
+  // Dashboard V&I (primeiro item da seção)
+  const itemDash = document.createElement('a');
+  itemDash.className = 'nav-item';
+  itemDash.dataset.rota = 'vi_dashboard';
+  itemDash.setAttribute('onclick', "viNavegar('vi_dashboard')");
+  itemDash.innerHTML = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    Dashboard V&amp;I`;
+  if (ancora) sidebar.insertBefore(itemDash, ancora); else sidebar.appendChild(itemDash);
+
   const itemEquip = document.createElement('a');
   itemEquip.className = 'nav-item';
   itemEquip.dataset.rota = 'vi_equip';
