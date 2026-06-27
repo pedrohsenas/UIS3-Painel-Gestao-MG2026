@@ -365,4 +365,3 @@ async function expGerarPDF() {
   doc.save(`relatorio_${expFonte}_${data}.pdf`);
   telaExportar();
 }
-
