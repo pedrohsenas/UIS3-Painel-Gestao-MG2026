@@ -62,14 +62,14 @@ async function viInserirEquipamento(eq) {
   return data;
 }
 async function viListarEquipamentos(filtro = {}) {
-  let q = sb.from('vi_equipamentos')
-    .select('*, vi_etapas(status), vi_fotos!equipamento_id(id, caminho_storage)')
-    .order('tag');
-  if (filtro.dominio) q = q.eq('dominio', filtro.dominio);
-  if (filtro.status) q = q.eq('status', filtro.status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('vi_equipamentos')
+      .select('*, vi_etapas(status), vi_fotos!equipamento_id(id, caminho_storage)')
+      .order('tag');
+    if (filtro.dominio) q = q.eq('dominio', filtro.dominio);
+    if (filtro.status) q = q.eq('status', filtro.status);
+    return q;
+  });
 }
 async function viEquipamento(id) {
   const { data, error } = await sb.from('vi_equipamentos')
@@ -170,13 +170,13 @@ async function viExcluirFoto(fotoId, caminho) {
 
 // ── Matriz / prazos / dashboard ──
 async function viEquipamentosComEtapas(filtro = {}) {
-  let q = sb.from('vi_equipamentos')
-    .select('id, tag, dominio, area, vi_etapas(id, codigo, ordem, status), vi_servicos_planejados(servico)')
-    .eq('status', 'ativa').order('tag');
-  if (filtro.dominio) q = q.eq('dominio', filtro.dominio);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('vi_equipamentos')
+      .select('id, tag, dominio, area, vi_etapas(id, codigo, ordem, status), vi_servicos_planejados(servico)')
+      .eq('status', 'ativa').order('tag');
+    if (filtro.dominio) q = q.eq('dominio', filtro.dominio);
+    return q;
+  });
 }
 async function viConcluirEtapasLote(ids, dataLancamento) {
   const agora = new Date().toISOString();
@@ -198,11 +198,11 @@ async function viDefinirPrazosLote(eqIds, codigo, prazo, apenasVazios) {
   if (e2) throw e2;
 }
 async function viEtapasResumo(filtro = {}) {
-  let q = sb.from('vi_etapas')
-    .select('id, codigo, status, prazo, concluido_em, vi_equipamentos!inner(id, dominio, status, area)')
-    .eq('vi_equipamentos.status', 'ativa');
-  if (filtro.dominio) q = q.eq('vi_equipamentos.dominio', filtro.dominio);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data;
+  return dbBuscarTudo(() => {
+    let q = sb.from('vi_etapas')
+      .select('id, codigo, status, prazo, concluido_em, vi_equipamentos!inner(id, dominio, status, area)')
+      .eq('vi_equipamentos.status', 'ativa');
+    if (filtro.dominio) q = q.eq('vi_equipamentos.dominio', filtro.dominio);
+    return q;
+  });
 }
