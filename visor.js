@@ -38,7 +38,7 @@
     ov.querySelector('.visor-fechar').addEventListener('click', fecharVisor);
     ov.addEventListener('click', e => { if (e.target === ov || e.target === palco) fecharVisor(); });
 
-    // ── Scroll (desktop) ──
+    // ──  (desktop) ──
     palco.addEventListener('wheel', e => {
       e.preventDefault();
       const delta = -e.deltaY * 0.0015;
