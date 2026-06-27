@@ -178,15 +178,20 @@ function viRenderFicha() {
       <div class="ficha-col">
         <div class="card-sec">
           <h3 class="card-sec-titulo">Fotos da coleta (${fotosColeta.length})</h3>
-          <div class="foto-galeria">${viRenderGaleria(fotosColeta, gestor)}</div>
+          <div class="foto-galeria" id="vi-galeria-coleta">${viRenderGaleria(fotosColeta, gestor)}</div>
+          <label class="add-foto-btn">
+            <input type="file" accept="image/*" multiple style="display:none" onchange="viAdicionarFotos(this, 'coleta')" />
+            + Adicionar fotos da coleta
+          </label>
         </div>
         <div class="card-sec">
           <h3 class="card-sec-titulo">Fotos do painel (${fotosPainel.length})</h3>
           <div class="foto-galeria" id="vi-galeria-painel">${viRenderGaleria(fotosPainel, gestor)}</div>
+          ${gestor ? `
           <label class="add-foto-btn">
-            <input type="file" accept="image/*" multiple style="display:none" onchange="viAdicionarFotos(this)" />
-            + Adicionar fotos
-          </label>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="viAdicionarFotos(this, 'painel')" />
+            + Adicionar fotos do painel
+          </label>` : '<p class="page-sub">Apenas o PCM adiciona fotos do painel</p>'}
         </div>
         <div class="card-sec">
           <h3 class="card-sec-titulo">Etapas</h3>
@@ -288,18 +293,19 @@ async function viExcluir() {
   catch (e) { alert('Erro: ' + e.message); }
 }
 
-async function viAdicionarFotos(input) {
+async function viAdicionarFotos(input, origem) {
+  origem = origem || 'painel';
   const files = Array.from(input.files);
   if (!files.length) return;
-  const galeria = document.getElementById('vi-galeria-painel');
+  const galeria = document.getElementById(origem === 'coleta' ? 'vi-galeria-coleta' : 'vi-galeria-painel');
   galeria.insertAdjacentHTML('beforeend', '<div class="loading"><div class="spinner"></div> Enviando...</div>');
   try {
     for (const file of files) {
       const blob = await comprimirImagem(file);
       const nome = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const caminho = `vi/${viFichaAtual.id}/painel_${nome}`;
+      const caminho = `vi/${viFichaAtual.id}/${origem}_${nome}`;
       await dbUploadFoto(caminho, blob);
-      await viRegistrarFoto(viFichaAtual.id, caminho, 'painel');
+      await viRegistrarFoto(viFichaAtual.id, caminho, origem);
     }
     viAbrirFicha(viFichaAtual.id);
   } catch (e) { alert('Erro no envio: ' + e.message); viAbrirFicha(viFichaAtual.id); }

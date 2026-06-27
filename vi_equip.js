@@ -16,7 +16,10 @@ function viTelaEquip(cat) {
   const c = VI_CATEGORIAS[viCategoriaAtual];
 
   setConteudo(`
-    <div class="page-head"><h2>Instrumentos & Válvulas</h2></div>
+    <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <h2>Instrumentos & Válvulas</h2>
+      <button class="btn" onclick="viTelaNovo(viCategoriaAtual)" style="white-space:nowrap">+ Novo ${viCategoriaAtual === 'valvula' ? 'Válvula' : 'Instrumento'}</button>
+    </div>
 
     <div class="cat-tabs">
       ${Object.entries(VI_CATEGORIAS).map(([k, v]) => `
