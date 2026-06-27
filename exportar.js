@@ -92,8 +92,16 @@ async function expCarregar() {
   try {
     if (expFonte === 'maquinas') {
       expDados = await dbListarMaquinas({ status: 'ativa' });
+      const fotos = await dbTodasFotosMaquinas();
+      const mapa = {};
+      fotos.forEach(f => { (mapa[f.maquina_id] = mapa[f.maquina_id] || []).push(f); });
+      expDados.forEach(m => { m.fotos = mapa[m.id] || []; });
     } else {
       expDados = await viListarEquipamentos({ status: 'ativa' });
+      const fotos = await viTodasFotos();
+      const mapa = {};
+      fotos.forEach(f => { (mapa[f.equipamento_id] = mapa[f.equipamento_id] || []).push(f); });
+      expDados.forEach(m => { m.vi_fotos = mapa[m.id] || []; });
     }
     // seleção inicial: todos marcados
     expSelecao = {};
@@ -365,3 +373,4 @@ async function expGerarPDF() {
   doc.save(`relatorio_${expFonte}_${data}.pdf`);
   telaExportar();
 }
+

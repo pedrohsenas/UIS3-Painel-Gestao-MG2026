@@ -289,3 +289,10 @@ async function dbSugerirRolamentos(termo) {
   (tr.data || []).forEach(r => { const v = (r.rolamento_traseiro || '').trim(); if (v) set.add(v); });
   return [...set].sort().slice(0, 12);
 }
+
+// ═══ Fotos para exportação — busca direta, sem ambiguidade de relação ══
+async function dbTodasFotosMaquinas() {
+  return dbBuscarTudo(() =>
+    sb.from('fotos').select('id, maquina_id, caminho_storage, origem').order('maquina_id')
+  );
+}

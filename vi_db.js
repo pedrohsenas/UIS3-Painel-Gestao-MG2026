@@ -206,3 +206,10 @@ async function viEtapasResumo(filtro = {}) {
     return q;
   });
 }
+
+// ═══ Fotos V&I para exportação ═══════════════════════════════════════
+async function viTodasFotos() {
+  return dbBuscarTudo(() =>
+    sb.from('vi_fotos').select('id, equipamento_id, caminho_storage, origem').order('equipamento_id')
+  );
+}
