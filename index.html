@@ -407,6 +407,42 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .sidebar::-webkit-scrollbar { width: 7px; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
+
+.ac-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: end;
+}
+.ac-filtros .field { margin: 0; }
+ 
+.ac-contadores { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.ac-cont { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid; }
+.ac-c-atras { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-bd); }
+.ac-c-and   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.ac-c-pend  { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-bd); }
+.ac-c-conc  { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
+ 
+/* cores das linhas por situação (borda-esquerda + fundo suave) */
+.ac-tabela tr, .ac-tabela tbody tr { transition: background .12s; }
+.ac-l-atras { background: var(--crit-bg) !important; box-shadow: inset 4px 0 0 var(--crit); }
+.ac-l-atras:hover { background: #fde2e2 !important; }
+.ac-l-pend  { background: var(--warn-bg) !important; box-shadow: inset 4px 0 0 var(--warn); }
+.ac-l-pend:hover { background: #fdf2d6 !important; }
+.ac-l-and   { background: #eff6ff !important; box-shadow: inset 4px 0 0 #2563eb; }
+.ac-l-and:hover { background: #dbeafe !important; }
+.ac-l-conc  { background: #f0fdf6 !important; box-shadow: inset 4px 0 0 #16a34a; }
+.ac-l-conc:hover { background: #dcfce7 !important; }
+.ac-l-conc .td-mono { color: #15803d; }
+ 
+/* célula de prazo/dias */
+.ac-dias { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.ac-dias-atras { background: var(--crit); color: #fff; }
+.ac-dias-hoje  { background: var(--warn); color: #fff; }
+.ac-dias-corre { background: #e5e7eb; color: var(--tx1); }
+.ac-dias-ok    { color: #16a34a; font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+.ac-dias-sem   { color: var(--tx2); font-size: 12px; font-style: italic; }
   
 /* ── Mobile ── */
 @media (max-width: 760px) {
