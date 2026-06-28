@@ -197,13 +197,30 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .srv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .srv-item { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: var(--bg0); border: 1.5px solid var(--line); border-radius: var(--r2); cursor: pointer; transition: all .13s; user-select: none; }
 .srv-item:hover { border-color: var(--line2); }
-.srv-item.feito { border-color: #16a34a; background: var(--ok-bg); }
+.srv-item:has(input:checked) {
+  border-color: #16a34a;
+  background: var(--ok-bg);
+}
 .srv-item input { display: none; }
 .srv-check { width: 18px; height: 18px; border: 2px solid var(--line2); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg1); transition: all .13s; }
-.srv-item.feito .srv-check { background: #16a34a; border-color: #16a34a; }
-.srv-item.feito .srv-check::after { content: ''; width: 5px; height: 9px; border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg) translateY(-1px); }
+.srv-item input:checked + .srv-check {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+.srv-item input:checked + .srv-check::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+}
 .srv-nome { font-size: 13px; color: var(--tx1); font-weight: 500; }
-.srv-item.feito .srv-nome { color: var(--ok); font-weight: 600; }
+.srv-item input:checked ~ .srv-nome {
+  color: var(--ok);
+  font-weight: 600;
+}
 .info-mini { display: flex; flex-direction: column; gap: 8px; }
 .info-mini > div { display: flex; justify-content: space-between; font-size: 13px; }
 .info-mini span { color: var(--tx2); }
