@@ -397,6 +397,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   margin-top: 8px;
   padding-top: 12px;
 }
+
+.sidebar {
+  overflow-y: auto;
+  max-height: calc(100dvh - 64px);   /* desconta a altura da topbar (~64px) */
+}
+ 
+/* barra de rolagem discreta */
+.sidebar::-webkit-scrollbar { width: 7px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
   
 /* ── Mobile ── */
 @media (max-width: 760px) {
