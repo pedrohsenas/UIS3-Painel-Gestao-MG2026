@@ -56,11 +56,11 @@ function viInjetarMenu() {
 
   const gestor = (typeof PERFIL !== 'undefined' && PERFIL && PERFIL.papel === 'gestor');
 
-  const espaco = sidebar.querySelector('.nav-espaco');
-  const ancora = espaco || null;
+  const marcador = document.getElementById('vi-secao-marcador');
+  const ancora = marcador || null;
 
   const sep = document.createElement('div');
-  sep.className = 'vi-menu-sep';
+  sep.className = 'nav-sec';
   sep.textContent = 'Válvulas & Instrumentos';
   if (ancora) sidebar.insertBefore(sep, ancora); else sidebar.appendChild(sep);
 
