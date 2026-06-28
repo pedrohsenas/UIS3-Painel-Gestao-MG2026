@@ -5,11 +5,14 @@ let matrizCategoria = 'ex';
 let matrizSelecao = {};   // { etapaId: { tag, etapaNome } }
 let matrizDados = [];
 let matrizData = '';   // data do lançamento (vazia até o usuário selecionar)
+let matrizResp = '';
+let _matrizPerfis = null;
 
 function telaMatriz(cat) {
   if (cat) matrizCategoria = cat;
   matrizSelecao = {};
   matrizData = '';
+  matrizResp = '';
   window._ajudaChave = 'matriz';
 
   setConteudo(`
@@ -44,6 +47,7 @@ async function carregarMatriz() {
   const c = CATEGORIAS[matrizCategoria];
   const el = document.getElementById('matriz-area');
   try {
+    if (!_matrizPerfis) { try { _matrizPerfis = await dbListarPerfis(); } catch { _matrizPerfis = []; } }
     matrizDados = await dbMaquinasComEtapas(c.filtro);
     if (!matrizDados.length) {
       el.innerHTML = `<div class="empty-state"><p class="empty-title">Nenhuma máquina ativa nesta categoria</p></div>`;
@@ -148,6 +152,14 @@ function telaConfirmacao() {
       com a data <strong>${new Date(matrizData + 'T12:00').toLocaleDateString('pt-BR')}</strong>.
     </p>
 
+    <div class="field" style="max-width:360px;margin-bottom:16px">
+      <label>Responsável (opcional — aplica a todos)</label>
+      <select id="matriz-resp" onchange="matrizResp=this.value">
+        <option value="">— não alterar —</option>
+        ${(_matrizPerfis || []).map(p => `<option value="${escHtml(p.nome)}"${matrizResp===p.nome?' selected':''}>${escHtml(p.nome)} (${p.papel==='gestor'?'Gestor':'Técnico'})</option>`).join('')}
+      </select>
+    </div>
+
     <div class="conf-lista">
       ${itens.map(([id, item]) => `
         <div class="conf-item" id="conf-${id}">
@@ -200,7 +212,8 @@ async function confirmarLancamentos() {
   const btn = document.getElementById('btn-confirmar');
   btn.disabled = true; btn.textContent = 'Lançando...';
   try {
-    await dbConcluirEtapasLote(ids, matrizData);
+    matrizResp = document.getElementById('matriz-resp')?.value || matrizResp;
+    await dbConcluirEtapasLote(ids, matrizData, matrizResp);
     setConteudo(`
       <div class="result-card ok" style="margin-top:40px">
         <h3>✅ Lançamentos confirmados</h3>

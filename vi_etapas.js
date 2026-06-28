@@ -59,7 +59,7 @@ function viRenderEtapa() {
               ${gestor ? `
               <select id="vet-resp">
                 <option value="">— selecione —</option>
-                ${(_viPerfisCache || []).map(p => `<option value="${escHtml(p.nome)}"${e.responsavel===p.nome?' selected':''}>${escHtml(p.nome)} (${p.papel==='gestor'?'Gestor':'Técnico'})</option>`).join('')}
+                ${(_viPerfisCache || []).map(p => `<option value="${escHtml(p.nome)}"${(e.responsavel || PERFIL?.nome)===p.nome?' selected':''}>${escHtml(p.nome)} (${p.papel==='gestor'?'Gestor':'Técnico'})</option>`).join('')}
               </select>` : `
               <input id="vet-resp" type="text" value="${escHtml(PERFIL?.nome || '')}" disabled title="Preenchido automaticamente com o usuário logado" />`}
             </div>

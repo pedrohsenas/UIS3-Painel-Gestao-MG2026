@@ -64,7 +64,7 @@ function renderEtapa() {
               ${gestor ? `
               <select id="et-resp">
                 <option value="">— selecione —</option>
-                ${(_perfisCache || []).map(p => `<option value="${escHtml(p.nome)}"${e.responsavel === p.nome ? ' selected' : ''}>${escHtml(p.nome)} (${p.papel === 'gestor' ? 'Gestor' : 'Técnico'})</option>`).join('')}
+                ${(_perfisCache || []).map(p => `<option value="${escHtml(p.nome)}"${(e.responsavel || PERFIL?.nome) === p.nome ? ' selected' : ''}>${escHtml(p.nome)} (${p.papel === 'gestor' ? 'Gestor' : 'Técnico'})</option>`).join('')}
               </select>` : `
               <input id="et-resp" type="text" value="${escHtml(PERFIL?.nome || '')}" disabled title="Preenchido automaticamente com o usuário logado" />`}
             </div>

@@ -182,14 +182,14 @@ async function dbMaquinasComEtapas(filtro = {}) {
   });
 }
 
-async function dbConcluirEtapasLote(ids, dataLancamento) {
+async function dbConcluirEtapasLote(ids, dataLancamento, responsavel) {
   const agora = new Date().toISOString();
   const concluido = dataLancamento
     ? new Date(dataLancamento + 'T12:00:00').toISOString()
     : agora;
-  const { error } = await sb.from('etapas')
-    .update({ status: 'concluida', concluido_em: concluido, atualizado_em: agora })
-    .in('id', ids);
+  const campos = { status: 'concluida', concluido_em: concluido, atualizado_em: agora };
+  if (responsavel) campos.responsavel = responsavel;
+  const { error } = await sb.from('etapas').update(campos).in('id', ids);
   if (error) throw error;
 }
 
@@ -294,5 +294,15 @@ async function dbSugerirRolamentos(termo) {
 async function dbTodasFotosMaquinas() {
   return dbBuscarTudo(() =>
     sb.from('fotos').select('id, maquina_id, caminho_storage, origem').order('maquina_id')
+  );
+}
+
+// ═══ Acompanhamento de Tarefas — etapas de máquinas ══════════════════
+async function dbEtapasAcompanhamento() {
+  return dbBuscarTudo(() =>
+    sb.from('etapas')
+      .select('id, codigo, status, prazo, concluido_em, responsavel, ' +
+              'maquinas!inner(id, tag, tipo, area, status, foto_principal_id, fotos!fotos_maquina_id_fkey(id, caminho_storage))')
+      .eq('maquinas.status', 'ativa')
   );
 }

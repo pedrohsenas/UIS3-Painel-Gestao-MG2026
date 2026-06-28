@@ -5,11 +5,14 @@ let viMatrizCategoria = 'instrumento';
 let viMatrizSelecao = {};
 let viMatrizData = '';
 let viMatrizDados = [];
+let viMatrizResp = '';
+let _viMatrizPerfis = null;
 
 function viTelaMatriz(cat) {
   if (cat) viMatrizCategoria = cat;
   viMatrizSelecao = {};
   viMatrizData = '';
+  viMatrizResp = '';
   window._ajudaChave = 'vi_matriz';
 
   setConteudo(`
@@ -39,6 +42,7 @@ function viTelaMatriz(cat) {
 async function viCarregarMatriz() {
   const el = document.getElementById('vi-matriz-area');
   try {
+    if (!_viMatrizPerfis) { try { _viMatrizPerfis = await dbListarPerfis(); } catch { _viMatrizPerfis = []; } }
     viMatrizDados = await viEquipamentosComEtapas({ dominio: viMatrizCategoria });
     if (!viMatrizDados.length) {
       el.innerHTML = `<div class="empty-state"><p class="empty-title">Nenhum equipamento ativo nesta categoria</p></div>`;
@@ -127,6 +131,14 @@ function viTelaConfirmacao() {
       Ao confirmar, cada etapa será marcada como <strong>concluída</strong> com a data
       <strong>${new Date(viMatrizData + 'T12:00').toLocaleDateString('pt-BR')}</strong>.
     </p>
+    <div class="field" style="max-width:360px;margin-bottom:16px">
+      <label>Responsável (opcional — aplica a todos)</label>
+      <select id="vi-matriz-resp" onchange="viMatrizResp=this.value">
+        <option value="">— não alterar —</option>
+        ${(_viMatrizPerfis || []).map(p => `<option value="${escHtml(p.nome)}"${viMatrizResp===p.nome?' selected':''}>${escHtml(p.nome)} (${p.papel==='gestor'?'Gestor':'Técnico'})</option>`).join('')}
+      </select>
+    </div>
+
     <div class="conf-lista">
       ${itens.map(([id, item]) => `
         <div class="conf-item" id="vi-conf-${id}">
@@ -174,7 +186,8 @@ async function viConfirmarLancamentos() {
   const btn = document.getElementById('vi-btn-confirmar');
   btn.disabled = true; btn.textContent = 'Lançando...';
   try {
-    await viConcluirEtapasLote(ids, viMatrizData);
+    viMatrizResp = document.getElementById('vi-matriz-resp')?.value || viMatrizResp;
+    await viConcluirEtapasLote(ids, viMatrizData, viMatrizResp);
     setConteudo(`
       <div class="result-card ok" style="margin-top:40px">
         <h3>✅ Lançamentos confirmados</h3>

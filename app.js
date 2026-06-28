@@ -18,6 +18,7 @@ function telaDashboard() { telaDashboardReal(); }
 // ─── Navegação ─────────────────────────────────────────────────────────
 const ROTAS = {
   dashboard:  telaDashboard,
+  acompanhamento: telaAcompanhamento,
   maquinas:   telaMaquinas,
   nova_maquina: telaNovaMaquina,
   exportar:   telaExportar,
@@ -111,6 +112,10 @@ async function iniciarApp() {
           <a class="nav-item" data-rota="dashboard" onclick="navegar('dashboard')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
             Dashboard
+          </a>
+          <a class="nav-item" data-rota="acompanhamento" onclick="navegar('acompanhamento')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Acompanhamento de Tarefas
           </a>
 
           <div class="nav-sec">Máquinas Elétricas</div>

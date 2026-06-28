@@ -178,12 +178,12 @@ async function viEquipamentosComEtapas(filtro = {}) {
     return q;
   });
 }
-async function viConcluirEtapasLote(ids, dataLancamento) {
+async function viConcluirEtapasLote(ids, dataLancamento, responsavel) {
   const agora = new Date().toISOString();
   const concluido = dataLancamento ? new Date(dataLancamento + 'T12:00:00').toISOString() : agora;
-  const { error } = await sb.from('vi_etapas')
-    .update({ status: 'concluida', concluido_em: concluido, atualizado_em: agora })
-    .in('id', ids);
+  const campos = { status: 'concluida', concluido_em: concluido, atualizado_em: agora };
+  if (responsavel) campos.responsavel = responsavel;
+  const { error } = await sb.from('vi_etapas').update(campos).in('id', ids);
   if (error) throw error;
 }
 async function viDefinirPrazosLote(eqIds, codigo, prazo, apenasVazios) {
@@ -211,5 +211,15 @@ async function viEtapasResumo(filtro = {}) {
 async function viTodasFotos() {
   return dbBuscarTudo(() =>
     sb.from('vi_fotos').select('id, equipamento_id, caminho_storage, origem').order('equipamento_id')
+  );
+}
+
+// ═══ Acompanhamento de Tarefas — etapas de V&I ═══════════════════════
+async function viEtapasAcompanhamento() {
+  return dbBuscarTudo(() =>
+    sb.from('vi_etapas')
+      .select('id, codigo, status, prazo, concluido_em, responsavel, ' +
+              'vi_equipamentos!inner(id, tag, dominio, tipo, area, status, foto_principal_id, vi_fotos!equipamento_id(id, caminho_storage))')
+      .eq('vi_equipamentos.status', 'ativa')
   );
 }
