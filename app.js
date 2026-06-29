@@ -56,17 +56,31 @@ function navegar(rota) {
   }
 }
 
-// Chamado por telas que navegam "de volta" (ex: abrirFichaProjeto → telaProjetos)
-// para restaurar o scroll sem recarregar a rota
+// Salva scroll no momento do clique (antes do render da ficha)
+function _salvarScrollAntes(rota) {
+  const c = document.getElementById('conteudo');
+  if (c) sessionStorage.setItem('scroll:' + rota, c.scrollTop);
+}
+
+// Restaura scroll com retry até o conteúdo ter altura suficiente
 function _restaurarScroll(rota) {
   const scrollSalvo = sessionStorage.getItem('scroll:' + rota);
-  if (!scrollSalvo) return;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const c = document.getElementById('conteudo');
-      if (c) c.scrollTop = +scrollSalvo;
-    });
-  });
+  if (!scrollSalvo || +scrollSalvo === 0) return;
+  const alvo = +scrollSalvo;
+  let tentativas = 0;
+  const MAX = 30; // até ~600ms
+  const tentar = () => {
+    const c = document.getElementById('conteudo');
+    if (!c) return;
+    // Só aplica quando o conteúdo é alto o suficiente para comportar o scroll
+    if (c.scrollHeight > c.clientHeight + alvo * 0.5 || tentativas >= MAX) {
+      c.scrollTop = alvo;
+    } else {
+      tentativas++;
+      setTimeout(tentar, 20);
+    }
+  };
+  requestAnimationFrame(tentar);
 }
 
 function telaLogin(erro) {
@@ -175,6 +189,22 @@ async function iniciarApp() {
   const ultimaRota = sessionStorage.getItem('rota') || 'maquinas';
   navegar(ultimaRota in ROTAS ? ultimaRota : 'maquinas');
 }
+
+// ── Intercepta abertura de fichas para salvar scroll no momento do clique ──
+// Roda após todos os scripts carregarem (window.onload garante isso)
+window.addEventListener('load', () => {
+  const _interceptar = (nomeFn, rotaLista) => {
+    const orig = window[nomeFn];
+    if (typeof orig !== 'function') return;
+    window[nomeFn] = function(...args) {
+      _salvarScrollAntes(rotaLista);
+      return orig.apply(this, args);
+    };
+  };
+  _interceptar('abrirFicha',         'maquinas');
+  _interceptar('viAbrirFicha',       'vi_equip');
+  _interceptar('abrirFichaProjeto',  'projetos');
+});
 
 (async () => {
   const sess = await dbSessao();
