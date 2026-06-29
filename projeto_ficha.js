@@ -652,8 +652,8 @@ async function _etapaSalvar() {
     if (statusEl) statusEl.value = etapa.status;
     return;
   }
-  // Em andamento exige ≥ 2 itens (só faz sentido com múltiplos itens)
-  if (novoStatus === 'em_andamento' && check.length < 2 && isExec) {
+  // Em andamento exige ≥ 2 itens (ambos os tipos)
+  if (novoStatus === 'em_andamento' && check.length < 2) {
     alert('Para o status "Em andamento" são necessários ao menos 2 itens no checklist.\nAdicione mais itens antes de prosseguir.');
     if (statusEl) statusEl.value = etapa.status;
     return;
@@ -665,6 +665,16 @@ async function _etapaSalvar() {
       alert('Informe a data de início real antes de marcar como "Em andamento".');
       if (statusEl) statusEl.value = etapa.status;
       document.getElementById('met-inicio')?.focus();
+      return;
+    }
+  }
+  // Em andamento (planejamento) exige prazo definido
+  if (novoStatus === 'em_andamento' && !isExec) {
+    const prazo = document.getElementById('met-prazo')?.value;
+    if (!prazo) {
+      alert('Informe o prazo antes de marcar como "Em andamento".');
+      if (statusEl) statusEl.value = etapa.status;
+      document.getElementById('met-prazo')?.focus();
       return;
     }
   }
