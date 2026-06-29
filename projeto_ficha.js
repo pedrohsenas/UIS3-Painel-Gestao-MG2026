@@ -317,7 +317,7 @@ function _renderGantt(etapas) {
         <span style="font-family:var(--mono);font-size:10px;color:var(--tx2);margin-left:auto">${pctEt.toFixed(0)}%</span>
       </div>
       <div style="position:relative;height:10px;background:var(--bg2);border-radius:5px;overflow:hidden">
-        <div style="position:absolute;left:${hojePct.toFixed(1)}%;top:0;bottom:0;width:2px;background:var(--accent);opacity:0.7;z-index:3"></div>`;
+        <div style="position:absolute;left:${hojePct.toFixed(1)}%;top:-2px;bottom:-2px;width:3px;background:var(--accent);z-index:3;box-shadow:0 0 4px rgba(26,95,212,0.5);border-radius:2px"></div>`;
 
     // Barra prevista (cinza escuro)
     if (temPrev) {
@@ -339,10 +339,11 @@ function _renderGantt(etapas) {
     </div>`;
   });
 
-  html += `<div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--tx2)">
+  html += `<div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--tx2);flex-wrap:wrap">
     <span><span style="display:inline-block;width:12px;height:8px;background:var(--bg3);border-radius:3px;margin-right:4px"></span>Previsto</span>
+    <span><span style="display:inline-block;width:12px;height:8px;background:#16a34a;opacity:0.45;border-radius:3px;margin-right:4px"></span>Avanço (checklist %)</span>
     <span><span style="display:inline-block;width:12px;height:8px;background:#16a34a;border-radius:3px;margin-right:4px"></span>Realizado</span>
-    <span><span style="display:inline-block;width:2px;height:12px;background:var(--accent);opacity:0.5;margin-right:4px;vertical-align:middle"></span>Hoje</span>
+    <span style="display:flex;align-items:center"><span style="display:inline-block;width:3px;height:13px;background:var(--accent);border-radius:2px;box-shadow:0 0 4px rgba(26,95,212,0.5);margin-right:5px"></span><strong style="color:var(--accent)">Hoje</strong></span>
   </div></div>`;
   return html;
 }
@@ -656,6 +657,16 @@ async function _etapaSalvar() {
     alert('Para o status "Em andamento" são necessários ao menos 2 itens no checklist.\nAdicione mais itens antes de prosseguir.');
     if (statusEl) statusEl.value = etapa.status;
     return;
+  }
+  // Em andamento (exec) exige data de início real
+  if (novoStatus === 'em_andamento' && isExec) {
+    const dataInicio = document.getElementById('met-inicio')?.value;
+    if (!dataInicio) {
+      alert('Informe a data de início real antes de marcar como "Em andamento".');
+      if (statusEl) statusEl.value = etapa.status;
+      document.getElementById('met-inicio')?.focus();
+      return;
+    }
   }
 
   const campos = { responsavel_id: resp || null };
