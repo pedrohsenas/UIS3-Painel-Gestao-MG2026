@@ -430,17 +430,16 @@ async function _renderModalEtapa() {
             ${coments.length === 0 ? `<p class="page-sub">Sem comentários.</p>` :
               coments.map(c => {
                 const autorNome = (_prjPerfis||[]).find(pf=>pf.id===c.autor_id)?.nome || '';
-                return `
-              <div class="prj-coment" id="comt-${c.id}">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                  <span style="font-size:12px;font-weight:600">${escHtml(autorNome)}</span>`;
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <span style="font-size:11px;color:var(--tx2)">${new Date(c.criado_em).toLocaleString('pt-BR')}</span>
-                    ${gestor ? `<button class="btn-mini btn-mini-danger" style="padding:2px 6px" onclick="_comentExcluir('${c.id}')">✕</button>` : ''}
+                return `<div class="prj-coment" id="comt-${c.id}">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                    <span style="font-size:12px;font-weight:600">${escHtml(autorNome)}</span>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:11px;color:var(--tx2)">${new Date(c.criado_em).toLocaleString('pt-BR')}</span>
+                      ${gestor ? `<button class="btn-mini btn-mini-danger" style="padding:2px 6px" onclick="_comentExcluir('${c.id}')">&#x2715;</button>` : ''}
+                    </div>
                   </div>
-                </div>
-                <p style="margin-top:4px;font-size:14px;white-space:pre-wrap">${escHtml(c.texto)}</p>
-              </div>`;
+                  <p style="margin-top:4px;font-size:14px;white-space:pre-wrap">${escHtml(c.texto)}</p>
+                </div>`;
               }).join('')}
           </div>
           ${podeEditar ? `
