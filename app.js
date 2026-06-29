@@ -30,11 +30,43 @@ const ROTAS = {
 };
 
 function navegar(rota) {
+  // Salva posição de scroll da rota anterior antes de sair
+  const conteudo = document.getElementById('conteudo');
+  const rotaAtual = sessionStorage.getItem('rota');
+  if (conteudo && rotaAtual) {
+    sessionStorage.setItem('scroll:' + rotaAtual, conteudo.scrollTop);
+  }
+
   window._ajudaChave = rota;
+  sessionStorage.setItem('rota', rota);
   document.querySelectorAll('.nav-item').forEach(el =>
     el.classList.toggle('ativo', el.dataset.rota === rota));
   (ROTAS[rota] || telaMaquinas)();
   document.getElementById('sidebar')?.classList.remove('aberto');
+
+  // Restaura posição de scroll desta rota (após render)
+  const scrollSalvo = sessionStorage.getItem('scroll:' + rota);
+  if (scrollSalvo) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const c = document.getElementById('conteudo');
+        if (c) c.scrollTop = +scrollSalvo;
+      });
+    });
+  }
+}
+
+// Chamado por telas que navegam "de volta" (ex: abrirFichaProjeto → telaProjetos)
+// para restaurar o scroll sem recarregar a rota
+function _restaurarScroll(rota) {
+  const scrollSalvo = sessionStorage.getItem('scroll:' + rota);
+  if (!scrollSalvo) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const c = document.getElementById('conteudo');
+      if (c) c.scrollTop = +scrollSalvo;
+    });
+  });
 }
 
 function telaLogin(erro) {
@@ -139,8 +171,33 @@ async function iniciarApp() {
       </div>
     </div>
   `;
-  navegar('maquinas');
+  // Restaura última rota visitada (ou maquinas como padrão)
+  const ultimaRota = sessionStorage.getItem('rota') || 'maquinas';
+  navegar(ultimaRota in ROTAS ? ultimaRota : 'maquinas');
 }
+
+// ── Wrappers para restaurar scroll ao voltar para telas de lista ──
+// Intercepta as funções de "volta" para restaurar posição salva.
+// Aguarda dois frames para o render concluir antes de rolar.
+function _wrapRestaurarScroll(fn, rota) {
+  return function(...args) {
+    fn.apply(this, args);
+    _restaurarScroll(rota);
+  };
+}
+
+// Aplica após o DOM estar pronto (as funções já foram declaradas pelos outros scripts)
+document.addEventListener('DOMContentLoaded', () => {
+  // Estas funções são chamadas pelos botões "‹ Voltar" nas fichas
+  if (typeof telaMaquinas !== 'undefined') {
+    const _orig = telaMaquinas;
+    window.telaMaquinas = _wrapRestaurarScroll(_orig, 'maquinas');
+  }
+  if (typeof telaProjetos !== 'undefined') {
+    const _orig = telaProjetos;
+    window.telaProjetos = _wrapRestaurarScroll(_orig, 'projetos');
+  }
+}, { once: true });
 
 (async () => {
   const sess = await dbSessao();
