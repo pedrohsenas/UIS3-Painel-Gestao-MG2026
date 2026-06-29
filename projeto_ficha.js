@@ -683,24 +683,45 @@ async function _etapaSalvar() {
     campos.prazo = document.getElementById('met-prazo')?.value || null;
   }
 
-  // ── Checklist pendente ao concluir ──
+  // ── Intertravamento checklist ↔ status ──
   const checkKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
-  const check = etapa[checkKey] || [];
-  const pendentes = check.filter(c => !c.concluido);
+  const checkFnMarcar = isExec ? prjExecCheckMarcar : prjCheckMarcar;
+  const check    = etapa[checkKey] || [];
+  const pendentes  = check.filter(c => !c.concluido);
+  const concluidos = check.filter(c => c.concluido);
 
-  if (campos.status === 'concluida' && pendentes.length > 0) {
-    if (!confirm(`${pendentes.length} item(ns) do checklist ainda pendente(s).\nTodos serão marcados como concluídos. Confirmar?`)) return;
-    for (const item of pendentes) {
-      const fn = isExec ? prjExecCheckMarcar : prjCheckMarcar;
-      await fn(item.id, true);
-      item.concluido = true;
+  if (campos.status === 'concluida') {
+    // → Concluída: marca todos os pendentes
+    if (pendentes.length > 0) {
+      if (!confirm(`${pendentes.length} item(ns) do checklist ainda pendente(s).\nTodos serão marcados como concluídos. Confirmar?`)) return;
+      for (const item of pendentes) {
+        await checkFnMarcar(item.id, true);
+        item.concluido = true;
+      }
     }
+    if (!etapa.concluido_em) campos.concluido_em = new Date().toISOString();
+  } else if (etapa.status === 'concluida' && campos.status !== 'concluida') {
+    // → Saindo de Concluída: desmarca todo o checklist
+    if (check.length > 0) {
+      if (!confirm(`Ao reabrir a etapa, todos os ${check.length} item(ns) do checklist serão redefinidos como pendentes. Confirmar?`)) return;
+      for (const item of concluidos) {
+        await checkFnMarcar(item.id, false);
+        item.concluido = false;
+      }
+    }
+    campos.concluido_em = null;
+    // Se exec: limpa data fim real ao reabrir
+    if (isExec && campos.data_fim) {
+      if (!confirm('Deseja manter a data fim real preenchida mesmo reabrindo a etapa?')) {
+        campos.data_fim = null;
+        const el = document.getElementById('met-fim');
+        if (el) el.value = '';
+      }
+    }
+  } else {
+    // Transições neutras (pendente ↔ em andamento)
+    campos.concluido_em = null;
   }
-
-  if (campos.status === 'concluida' && !etapa.concluido_em) {
-    campos.concluido_em = new Date().toISOString();
-  }
-  if (campos.status !== 'concluida') campos.concluido_em = null;
 
   try {
     const fn = isExec ? prjExecEtapaAtualizar : prjEtapaAtualizar;
