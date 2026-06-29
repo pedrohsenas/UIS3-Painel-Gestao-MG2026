@@ -281,8 +281,7 @@ function _renderGantt(etapas) {
   const hojeIso = new Date().toISOString().slice(0,10);
   const hojePct = pct(hojeIso);
 
-  let html = `<div style="position:relative;margin-bottom:4px">
-    <div style="position:absolute;left:${hojePct.toFixed(1)}%;top:0;bottom:0;width:2px;background:var(--accent);opacity:0.5;z-index:2"></div>`;
+  let html = `<div style="margin-bottom:4px">`;
 
   comDatas.forEach(et => {
     const temPrev = et.data_inicio_prev && et.data_fim_prev;
@@ -317,7 +316,8 @@ function _renderGantt(etapas) {
         ${desvio}
         <span style="font-family:var(--mono);font-size:10px;color:var(--tx2);margin-left:auto">${pctEt.toFixed(0)}%</span>
       </div>
-      <div style="position:relative;height:10px;background:var(--bg2);border-radius:5px;overflow:hidden">`;
+      <div style="position:relative;height:10px;background:var(--bg2);border-radius:5px;overflow:hidden">
+        <div style="position:absolute;left:${hojePct.toFixed(1)}%;top:0;bottom:0;width:2px;background:var(--accent);opacity:0.7;z-index:3"></div>`;
 
     // Barra prevista (cinza escuro)
     if (temPrev) {
@@ -984,7 +984,7 @@ function _abrirModalGerenciarEtapas(tipo) {
           ${etapas.map(et => `
             <div class="prj-etapa-row" id="ged-row-${et.id}">
               <span class="prj-etapa-ord">${et.ordem}</span>
-              <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:2" ${et.fixo?'disabled':''} />
+              <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:2" />
               ${tipo==='exec' ? `
                 <input type="date" value="${et.data_inicio_prev||''}" id="ged-ini-prev-${et.id}" style="flex:1" title="Início previsto" placeholder="Início prev." />
                 <input type="number" min="1" max="999" value="${et.duracao_prev_dias||''}" id="ged-dur-${et.id}" style="flex:0 0 70px;padding:6px 8px" title="Duração prev. (dias)" placeholder="dias" />
