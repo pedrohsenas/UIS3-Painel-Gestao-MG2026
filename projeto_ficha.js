@@ -652,11 +652,18 @@ async function _etapaSalvar() {
     if (statusEl) statusEl.value = etapa.status;
     return;
   }
-  // Em andamento exige ≥ 2 itens (ambos os tipos)
-  if (novoStatus === 'em_andamento' && check.length < 2) {
-    alert('Para o status "Em andamento" são necessários ao menos 2 itens no checklist.\nAdicione mais itens antes de prosseguir.');
-    if (statusEl) statusEl.value = etapa.status;
-    return;
+  // Em andamento exige ao menos 1 item marcado E 1 pendente (progresso parcial)
+  if (novoStatus === 'em_andamento') {
+    const temMarcado  = check.some(c =>  c.concluido);
+    const temPendente = check.some(c => !c.concluido);
+    if (!temMarcado || !temPendente) {
+      alert('Para "Em andamento" deve haver ao menos um item do checklist concluído e um pendente.\n\n' +
+        (check.length === 0 ? 'Adicione itens ao checklist primeiro.' :
+         !temMarcado ? 'Nenhum item foi marcado ainda — use "Pendente".' :
+         'Todos os itens estão marcados — use "Concluída".'));
+      if (statusEl) statusEl.value = etapa.status;
+      return;
+    }
   }
   // Em andamento (exec) exige data de início real
   if (novoStatus === 'em_andamento' && isExec) {
