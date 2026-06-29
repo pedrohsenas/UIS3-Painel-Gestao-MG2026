@@ -600,21 +600,52 @@ function fecharModalEtapa() {
   _fichaEtapaId = null;
 }
 
-// ── Salvar controle da etapa (com lógica status ↔ checklist) ──
+// ── Atualiza % nas abas sem recriar a ficha inteira ──
+function _atualizarBotoesAba() {
+  const p = _fichaProj;
+  const pctPlan = prjCalcProgresso(p.projeto_etapas || []);
+  const pctExec = prjExecCalcProgresso(p.projeto_exec_etapas || []);
+  const btns = document.querySelectorAll('.cat-tabs .cat-tab');
+  if (btns[0]) btns[0].innerHTML = `&#128196; Planejamento <span style="font-family:var(--mono);font-size:11px">${pctPlan.toFixed(0)}%</span>`;
+  if (btns[1]) btns[1].innerHTML = `&#9881; Execução <span style="font-family:var(--mono);font-size:11px">${pctExec.toFixed(0)}%</span>`;
+}
+
+// ── Verifica se todas as etapas exec estão concluídas e propõe concluir o projeto ──
+async function _verificarConclusaoProjeto() {
+  const etapas = _fichaProj.projeto_exec_etapas || [];
+  if (!etapas.length) return;
+  const todasConcluidas = etapas.every(e => e.status === 'concluida');
+  if (todasConcluidas && _fichaProj.status !== 'concluido') {
+    if (confirm('Todas as etapas de execução foram concluídas!\nDeseja marcar o projeto como "Concluído"?')) {
+      await prjAtualizar(_fichaProj.id, { status: 'concluido' });
+      _fichaProj.status = 'concluido';
+      // Atualiza badge de status no cabeçalho sem recriar a ficha
+      const tituloEl = document.querySelector('.ficha-titulo');
+      if (tituloEl) {
+        // Remove badge antigo e insere novo
+        const badgeAntigo = tituloEl.querySelector('.ac-cont, .badge-status');
+        if (badgeAntigo) badgeAntigo.outerHTML = _prjBadgeStatus('concluido');
+      }
+      _mostrarFeedback('Projeto marcado como Concluído');
+    }
+  }
+}
+
+// ── Salvar controle da etapa (com lógica status ↔ checklist ↔ data fim) ──
 async function _etapaSalvar() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
   const tipo = _fichaEtapaTipo;
   const isExec = tipo === 'exec';
 
-  const status = document.getElementById('met-status')?.value || etapa.status;
-  const resp   = document.getElementById('met-resp')?.value   || null;
+  const statusEl = document.getElementById('met-status');
+  const status = statusEl?.value || etapa.status;
+  const resp   = document.getElementById('met-resp')?.value || null;
   const campos = { status, responsavel_id: resp || null };
 
   if (isExec) {
     campos.data_inicio_prev  = document.getElementById('met-inicio-prev')?.value || null;
     campos.duracao_prev_dias = +(document.getElementById('met-dur-prev')?.value) || null;
-    // data_fim_prev calculada: inicio_prev + duracao_prev_dias
     if (campos.data_inicio_prev && campos.duracao_prev_dias) {
       const d = new Date(campos.data_inicio_prev+'T00:00:00');
       d.setDate(d.getDate() + campos.duracao_prev_dias);
@@ -624,18 +655,41 @@ async function _etapaSalvar() {
     }
     campos.data_inicio = document.getElementById('met-inicio')?.value || null;
     campos.data_fim    = document.getElementById('met-fim')?.value    || null;
+
+    // ── Regra: data fim real preenchida → força status Concluída ──
+    if (campos.data_fim && status !== 'concluida') {
+      if (confirm('Data fim real preenchida. A etapa será marcada como "Concluída". Confirmar?')) {
+        campos.status = 'concluida';
+        if (statusEl) statusEl.value = 'concluida';
+      } else {
+        // Usuário cancelou — limpa a data fim
+        campos.data_fim = null;
+        const el = document.getElementById('met-fim');
+        if (el) el.value = '';
+      }
+    }
+
+    // ── Regra: status Concluída → data fim real obrigatória ──
+    if (campos.status === 'concluida' && !campos.data_fim) {
+      alert('Para concluir a etapa é necessário informar a data fim real.\nPreenchendo com a data de hoje — ajuste se necessário.');
+      const hoje = new Date().toISOString().slice(0,10);
+      campos.data_fim = hoje;
+      const el = document.getElementById('met-fim');
+      if (el) el.value = hoje;
+      // Não continua o save — deixa o usuário revisar e salvar novamente
+      return;
+    }
   } else {
     campos.prazo = document.getElementById('met-prazo')?.value || null;
   }
 
-  // Status → concluida: verificar checklist pendente
+  // ── Checklist pendente ao concluir ──
   const checkKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
   const check = etapa[checkKey] || [];
   const pendentes = check.filter(c => !c.concluido);
 
-  if (status === 'concluida' && pendentes.length > 0) {
+  if (campos.status === 'concluida' && pendentes.length > 0) {
     if (!confirm(`${pendentes.length} item(ns) do checklist ainda pendente(s).\nTodos serão marcados como concluídos. Confirmar?`)) return;
-    // Marca todos os pendentes
     for (const item of pendentes) {
       const fn = isExec ? prjExecCheckMarcar : prjCheckMarcar;
       await fn(item.id, true);
@@ -643,21 +697,29 @@ async function _etapaSalvar() {
     }
   }
 
-  if (status === 'concluida' && !etapa.concluido_em) {
+  if (campos.status === 'concluida' && !etapa.concluido_em) {
     campos.concluido_em = new Date().toISOString();
   }
-  if (status !== 'concluida') campos.concluido_em = null;
+  if (campos.status !== 'concluida') campos.concluido_em = null;
 
   try {
     const fn = isExec ? prjExecEtapaAtualizar : prjEtapaAtualizar;
     await fn(etapa.id, campos);
     Object.assign(etapa, campos);
-    const msg = document.getElementById('met-salvo');
-    if (msg) { msg.style.display = ''; setTimeout(() => msg.style.display = 'none', 2000); }
-    // Re-render do card na ficha (atualiza %)
+
+    // Atualiza % nas abas em tempo real
+    _atualizarBotoesAba();
+    // Atualiza conteúdo da aba atual
     _renderAba();
-    // Mantém modal aberto — re-renderiza para atualizar checklist visual
+    // Re-renderiza modal com dados atualizados
     await _renderModalEtapa();
+
+    // Feedback visual
+    _mostrarFeedback('Alterações salvas');
+
+    // Verifica se projeto pode ser concluído (só para exec)
+    if (isExec) await _verificarConclusaoProjeto();
+
   } catch (e) {
     alert('Erro ao salvar: ' + e.message);
   }
@@ -702,6 +764,9 @@ async function _checkMarcar(id, concluido, tipo) {
     const pEt = etapa ? calcFn(etapa) : 0;
     const pctEl = document.querySelector('.prj-etapa-modal .prj-modal-head span');
     if (pctEl) pctEl.textContent = pEt.toFixed(0) + '%';
+
+    // Atualiza % nas abas em tempo real
+    _atualizarBotoesAba();
 
     // Verifica se todos concluídos → sugere marcar etapa como concluída
     const check = etapa?.[checkKey] || [];
@@ -840,6 +905,9 @@ async function _prjSalvarInfo() {
   try {
     await prjAtualizar(_fichaProj.id, campos);
     Object.assign(_fichaProj, campos);
+    // Atualiza badge no cabeçalho em tempo real
+    const badgeEl = document.querySelector('.ficha-titulo .ac-cont, .ficha-titulo .badge-status');
+    if (badgeEl) badgeEl.outerHTML = _prjBadgeStatus(_fichaProj.status);
     _mostrarFeedback('Informações salvas');
   } catch(e) { alert('Erro: '+e.message); }
 }
