@@ -94,6 +94,8 @@ function renderListaProjetos(projetos) {
 
     <div id="prj-modal-root"></div>
   `);
+  // Restaura posição de scroll ao voltar da ficha
+  if (typeof _restaurarScroll !== 'undefined') _restaurarScroll('projetos');
 }
 
 function _prjBadgeStatus(s) {

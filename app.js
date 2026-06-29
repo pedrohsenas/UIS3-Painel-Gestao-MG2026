@@ -176,29 +176,6 @@ async function iniciarApp() {
   navegar(ultimaRota in ROTAS ? ultimaRota : 'maquinas');
 }
 
-// ── Wrappers para restaurar scroll ao voltar para telas de lista ──
-// Intercepta as funções de "volta" para restaurar posição salva.
-// Aguarda dois frames para o render concluir antes de rolar.
-function _wrapRestaurarScroll(fn, rota) {
-  return function(...args) {
-    fn.apply(this, args);
-    _restaurarScroll(rota);
-  };
-}
-
-// Aplica após o DOM estar pronto (as funções já foram declaradas pelos outros scripts)
-document.addEventListener('DOMContentLoaded', () => {
-  // Estas funções são chamadas pelos botões "‹ Voltar" nas fichas
-  if (typeof telaMaquinas !== 'undefined') {
-    const _orig = telaMaquinas;
-    window.telaMaquinas = _wrapRestaurarScroll(_orig, 'maquinas');
-  }
-  if (typeof telaProjetos !== 'undefined') {
-    const _orig = telaProjetos;
-    window.telaProjetos = _wrapRestaurarScroll(_orig, 'projetos');
-  }
-}, { once: true });
-
 (async () => {
   const sess = await dbSessao();
   if (sess) await iniciarApp();

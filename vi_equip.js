@@ -127,4 +127,6 @@ function viRenderTabela(lista) {
         </tbody>
       </table>
     </div>`;
+  // Restaura posição de scroll ao voltar da ficha V&I
+  if (typeof _restaurarScroll !== 'undefined') _restaurarScroll('vi_equip');
 }

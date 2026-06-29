@@ -145,4 +145,6 @@ function renderTabelaMaquinas(lista) {
       </table>
     </div>
   `;
+  // Restaura posição de scroll ao voltar da ficha
+  if (typeof _restaurarScroll !== 'undefined') _restaurarScroll('maquinas');
 }
