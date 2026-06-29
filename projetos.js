@@ -21,6 +21,20 @@ async function telaProjetos() {
   }
 }
 
+
+// ── Pizza de progresso (SVG inline, gradiente) ──
+function _pizzaSvg(pct, cor, corFundo) {
+  const r = 16, cx = 18, cy = 18, circ = 2 * Math.PI * r;
+  const dash = Math.min(pct / 100, 1) * circ;
+  const gap  = circ - dash;
+  return `<svg width="36" height="36" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${corFundo}" stroke-width="4"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${cor}" stroke-width="4"
+      stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
+      stroke-linecap="round"/>
+  </svg>`;
+}
+
 function renderListaProjetos(projetos) {
   const gestor = PERFIL?.papel === 'gestor';
 
@@ -60,24 +74,32 @@ function renderListaProjetos(projetos) {
             <th>Título</th>
             <th>Setor</th>
             <th>Prazo</th>
-            <th>Progresso</th>
+            <th style="text-align:center">Planej.</th>
+            <th style="text-align:center">Exec.</th>
             <th>Status</th>
             <th>Prioridade</th>
             <th></th>
           </tr></thead>
           <tbody>
             ${projetos.map(p => {
-              const pct = prjCalcProgresso(p.projeto_etapas || []);
+              const pctPlan = prjCalcProgresso(p.projeto_etapas || []);
+              const pctExec = prjExecCalcProgresso(p.projeto_exec_etapas || []);
               const atras = p.status !== 'concluido' && p.status !== 'cancelado' &&
                             p.prazo_final && new Date(p.prazo_final + 'T23:59:59') < new Date();
               return `<tr class="${atras ? 'ac-l-atras' : ''}">
                 <td><strong style="cursor:pointer;color:var(--accent)" onclick="abrirFichaProjeto('${p.id}')">${escHtml(p.titulo)}</strong></td>
                 <td>${escHtml(p.setor || '—')}</td>
                 <td class="td-mono">${p.prazo_final ? new Date(p.prazo_final + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
-                <td style="min-width:120px">
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <div class="prj-barra-wrap"><div class="prj-barra-fill" style="width:${pct.toFixed(0)}%"></div></div>
-                    <span class="td-mono" style="font-size:12px;min-width:34px">${pct.toFixed(0)}%</span>
+                <td style="text-align:center">
+                  <div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px">
+                    ${_pizzaSvg(pctPlan,'var(--accent)','var(--bg2)')}
+                    <span style="font-family:var(--mono);font-size:10px;color:var(--accent)">${pctPlan.toFixed(0)}%</span>
+                  </div>
+                </td>
+                <td style="text-align:center">
+                  <div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px">
+                    ${_pizzaSvg(pctExec,'#16a34a','var(--bg2)')}
+                    <span style="font-family:var(--mono);font-size:10px;color:#16a34a">${pctExec.toFixed(0)}%</span>
                   </div>
                 </td>
                 <td>${_prjBadgeStatus(p.status)}</td>

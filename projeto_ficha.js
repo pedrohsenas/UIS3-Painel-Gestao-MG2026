@@ -631,18 +631,36 @@ async function _verificarConclusaoProjeto() {
   }
 }
 
-// ── Salvar controle da etapa (com lógica status ↔ checklist ↔ data fim) ──
+// ── Salvar controle da etapa — regras completas status ↔ checklist ↔ datas ──
 async function _etapaSalvar() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
-  const tipo = _fichaEtapaTipo;
-  const isExec = tipo === 'exec';
-
+  const tipo    = _fichaEtapaTipo;
+  const isExec  = tipo === 'exec';
   const statusEl = document.getElementById('met-status');
-  const status = statusEl?.value || etapa.status;
+  let   novoStatus = statusEl?.value || etapa.status;
   const resp   = document.getElementById('met-resp')?.value || null;
-  const campos = { status, responsavel_id: resp || null };
 
+  const checkKey      = isExec ? 'projeto_exec_checklist'  : 'projeto_checklist';
+  const checkFnMarcar = isExec ? prjExecCheckMarcar         : prjCheckMarcar;
+  const check         = etapa[checkKey] || [];
+
+  // ── PRÉ-CONDIÇÃO: checklist obrigatório para sair de Pendente ──
+  if (novoStatus !== 'pendente' && check.length === 0) {
+    alert('Esta etapa não possui itens no checklist.\nAdicione ao menos um item antes de alterar o status.');
+    if (statusEl) statusEl.value = etapa.status;
+    return;
+  }
+  // Em andamento exige ≥ 2 itens (só faz sentido com múltiplos itens)
+  if (novoStatus === 'em_andamento' && check.length < 2 && isExec) {
+    alert('Para o status "Em andamento" são necessários ao menos 2 itens no checklist.\nAdicione mais itens antes de prosseguir.');
+    if (statusEl) statusEl.value = etapa.status;
+    return;
+  }
+
+  const campos = { responsavel_id: resp || null };
+
+  // ── Campos de datas ──
   if (isExec) {
     campos.data_inicio_prev  = document.getElementById('met-inicio-prev')?.value || null;
     campos.duracao_prev_dias = +(document.getElementById('met-dur-prev')?.value) || null;
@@ -650,97 +668,110 @@ async function _etapaSalvar() {
       const d = new Date(campos.data_inicio_prev+'T00:00:00');
       d.setDate(d.getDate() + campos.duracao_prev_dias);
       campos.data_fim_prev = d.toISOString().slice(0,10);
-    } else {
-      campos.data_fim_prev = null;
-    }
+    } else { campos.data_fim_prev = null; }
+
     campos.data_inicio = document.getElementById('met-inicio')?.value || null;
     campos.data_fim    = document.getElementById('met-fim')?.value    || null;
 
-    // ── Regra: data fim real preenchida → força status Concluída ──
-    if (campos.data_fim && status !== 'concluida') {
+    // Data início preenchida + status Pendente → sugere Em andamento
+    if (campos.data_inicio && novoStatus === 'pendente' && etapa.status === 'pendente') {
+      if (check.length >= 2 && confirm('Data de início preenchida. Deseja alterar o status para "Em andamento"?')) {
+        novoStatus = 'em_andamento';
+        if (statusEl) statusEl.value = 'em_andamento';
+      }
+    }
+
+    // Data fim preenchida + não concluída → força Concluída
+    if (campos.data_fim && novoStatus !== 'concluida') {
       if (confirm('Data fim real preenchida. A etapa será marcada como "Concluída". Confirmar?')) {
-        campos.status = 'concluida';
+        novoStatus = 'concluida';
         if (statusEl) statusEl.value = 'concluida';
       } else {
-        // Usuário cancelou — limpa a data fim
         campos.data_fim = null;
         const el = document.getElementById('met-fim');
         if (el) el.value = '';
       }
     }
 
-    // ── Regra: status Concluída → data fim real obrigatória ──
-    if (campos.status === 'concluida' && !campos.data_fim) {
-      alert('Para concluir a etapa é necessário informar a data fim real.\nPreenchendo com a data de hoje — ajuste se necessário.');
+    // Concluída → data fim obrigatória
+    if (novoStatus === 'concluida' && !campos.data_fim) {
       const hoje = new Date().toISOString().slice(0,10);
+      alert('Para concluir a etapa informe a data fim real.\nPreenchendo com a data de hoje — ajuste se necessário antes de salvar.');
       campos.data_fim = hoje;
       const el = document.getElementById('met-fim');
       if (el) el.value = hoje;
-      // Não continua o save — deixa o usuário revisar e salvar novamente
+      campos.status = novoStatus;
+      if (statusEl) statusEl.value = novoStatus;
+      // Mostra data preenchida mas retorna para o usuário confirmar
+      await _renderModalEtapa();
       return;
     }
   } else {
     campos.prazo = document.getElementById('met-prazo')?.value || null;
   }
 
-  // ── Intertravamento checklist ↔ status ──
-  const checkKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
-  const checkFnMarcar = isExec ? prjExecCheckMarcar : prjCheckMarcar;
-  const check    = etapa[checkKey] || [];
+  // ── Intertravamento status ↔ checklist ──
   const pendentes  = check.filter(c => !c.concluido);
-  const concluidos = check.filter(c => c.concluido);
+  const marcados   = check.filter(c =>  c.concluido);
 
-  if (campos.status === 'concluida') {
-    // → Concluída: marca todos os pendentes
+  if (novoStatus === 'concluida') {
+    // Marca todos os pendentes
     if (pendentes.length > 0) {
-      if (!confirm(`${pendentes.length} item(ns) do checklist ainda pendente(s).\nTodos serão marcados como concluídos. Confirmar?`)) return;
-      for (const item of pendentes) {
-        await checkFnMarcar(item.id, true);
-        item.concluido = true;
-      }
+      if (!confirm(`${pendentes.length} item(ns) ainda pendente(s).\nTodos serão marcados como concluídos. Confirmar?`)) return;
+      for (const item of pendentes) { await checkFnMarcar(item.id, true); item.concluido = true; }
     }
     if (!etapa.concluido_em) campos.concluido_em = new Date().toISOString();
-  } else if (etapa.status === 'concluida' && campos.status !== 'concluida') {
-    // → Saindo de Concluída: desmarca todo o checklist
-    if (check.length > 0) {
-      if (!confirm(`Ao reabrir a etapa, todos os ${check.length} item(ns) do checklist serão redefinidos como pendentes. Confirmar?`)) return;
-      for (const item of concluidos) {
-        await checkFnMarcar(item.id, false);
-        item.concluido = false;
-      }
+
+  } else if (novoStatus === 'pendente') {
+    // Pendente: desmarca TUDO e limpa datas reais
+    if (marcados.length > 0) {
+      if (!confirm(`Ao retornar para Pendente, todos os ${check.length} item(ns) do checklist serão redefinidos como pendentes. Confirmar?`)) return;
+      for (const item of marcados) { await checkFnMarcar(item.id, false); item.concluido = false; }
     }
     campos.concluido_em = null;
-    // Se exec: limpa data fim real ao reabrir
-    if (isExec && campos.data_fim) {
-      if (!confirm('Deseja manter a data fim real preenchida mesmo reabrindo a etapa?')) {
+    if (isExec) {
+      // Limpa data fim (etapa não está mais concluída)
+      if (campos.data_fim && etapa.status === 'concluida') {
         campos.data_fim = null;
-        const el = document.getElementById('met-fim');
-        if (el) el.value = '';
+        const el = document.getElementById('met-fim'); if (el) el.value = '';
       }
     }
-  } else {
-    // Transições neutras (pendente ↔ em andamento)
+
+  } else if (novoStatus === 'em_andamento') {
+    // Em andamento: não mexe nos itens marcados, limpa concluido_em
+    if (etapa.status === 'concluida') {
+      // Saindo de concluída → desmarca todos
+      if (!confirm(`Ao reabrir a etapa, todos os ${check.length} item(ns) do checklist serão redefinidos como pendentes. Confirmar?`)) return;
+      for (const item of marcados) { await checkFnMarcar(item.id, false); item.concluido = false; }
+      if (isExec && campos.data_fim) {
+        if (!confirm('Deseja manter a data fim real preenchida mesmo reabrindo a etapa?')) {
+          campos.data_fim = null;
+          const el = document.getElementById('met-fim'); if (el) el.value = '';
+        }
+      }
+    }
     campos.concluido_em = null;
+  }
+
+  campos.status = novoStatus;
+
+  // ── Reabriu etapa → projeto volta para Em andamento se estava Concluído ──
+  if (novoStatus !== 'concluida' && etapa.status === 'concluida' &&
+      _fichaProj.status === 'concluido') {
+    await prjAtualizar(_fichaProj.id, { status: 'em_andamento' });
+    _fichaProj.status = 'em_andamento';
+    _mostrarFeedback('Projeto reaberto automaticamente para Em andamento');
   }
 
   try {
     const fn = isExec ? prjExecEtapaAtualizar : prjEtapaAtualizar;
     await fn(etapa.id, campos);
     Object.assign(etapa, campos);
-
-    // Atualiza % nas abas em tempo real
     _atualizarBotoesAba();
-    // Atualiza conteúdo da aba atual
     _renderAba();
-    // Re-renderiza modal com dados atualizados
     await _renderModalEtapa();
-
-    // Feedback visual
     _mostrarFeedback('Alterações salvas');
-
-    // Verifica se projeto pode ser concluído (só para exec)
     if (isExec) await _verificarConclusaoProjeto();
-
   } catch (e) {
     alert('Erro ao salvar: ' + e.message);
   }
