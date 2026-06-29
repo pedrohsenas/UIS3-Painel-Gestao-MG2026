@@ -24,7 +24,7 @@ async function prjBuscar(id) {
     .select('*, ' +
             'projeto_equipe(perfil_id, perfis(id, nome, papel)), ' +
             'projeto_etapas(*, ' +
-              'projeto_checklist(*, perfis(nome)), ' +
+              'projeto_checklist(*), ' +
               'projeto_comentarios(*, perfis(nome)), ' +
               'projeto_fotos(*)' +
             ')')
