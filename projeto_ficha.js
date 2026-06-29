@@ -349,12 +349,14 @@ async function _renderModalEtapa() {
 
   const checkKey   = tipo === 'exec' ? 'projeto_exec_checklist'  : 'projeto_checklist';
   const comentKey  = tipo === 'exec' ? 'projeto_exec_comentarios': 'projeto_comentarios';
-  const fotoKey    = tipo === 'exec' ? 'projeto_exec_fotos'      : 'projeto_fotos';
+  // fotos: exec usa projeto_fotos filtrado por exec_etapa_id; plan usa etapa.projeto_fotos
   const calcFn     = tipo === 'exec' ? prjExecCalcProgressoEtapa : prjCalcProgressoEtapa;
 
   const check  = (etapa[checkKey]  || []).sort((a,b) => a.id>b.id?1:-1);
   const coments= (etapa[comentKey] || []).sort((a,b) => a.criado_em>b.criado_em?1:-1);
-  const fotos  = etapa[fotoKey] || [];
+  const fotos = tipo === 'exec'
+    ? (_fichaProj?.projeto_fotos||[]).filter(f => f.exec_etapa_id === etapa.id)
+    : (etapa.projeto_fotos || []);
   const pEt    = calcFn(etapa);
   const pesoTotalCheck = check.reduce((s,c)=>s+(c.peso||1),0);
 
@@ -664,11 +666,15 @@ async function _fotosAdicionar(projetoId, etapaId, input, tipo) {
 async function _fotoExcluir(id, caminho) {
   if (!confirm('Excluir esta foto?')) return;
   const tipo = _fichaEtapaTipo;
-  const fotoKey = tipo === 'exec' ? 'projeto_exec_fotos' : 'projeto_fotos';
+  // fotos exec em projeto_fotos por exec_etapa_id
   try {
     await prjFotoExcluir(id, caminho);
     const etapa = _getEtapaAtual();
-    if (etapa) etapa[fotoKey] = (etapa[fotoKey]||[]).filter(f=>f.id!==id);
+  if (tipo === 'exec') {
+    if (_fichaProj?.projeto_fotos) _fichaProj.projeto_fotos = _fichaProj.projeto_fotos.filter(f=>f.id!==id);
+  } else {
+    if (etapa) etapa.projeto_fotos = (etapa.projeto_fotos||[]).filter(f=>f.id!==id);
+  }
     document.getElementById('fw-'+id)?.remove();
   } catch (e) { alert('Erro: ' + e.message); }
 }

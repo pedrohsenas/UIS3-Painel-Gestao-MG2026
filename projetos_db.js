@@ -31,7 +31,7 @@ async function prjBuscar(id) {
       'projeto_equipe(perfil_id, perfis(id, nome, papel)), ' +
       'projeto_fotos!projeto_fotos_projeto_id_fkey(id, caminho_storage, etapa_id, exec_etapa_id), ' +
       'projeto_etapas(*, projeto_checklist(*), projeto_comentarios(*), projeto_fotos(*)), ' +
-      'projeto_exec_etapas(*, projeto_exec_checklist(*), projeto_exec_comentarios(*), projeto_exec_fotos(*))')
+      'projeto_exec_etapas(*, projeto_exec_checklist(*), projeto_exec_comentarios(*))')
     .eq('id', id).single();
   if (error) throw error;
   if (data.projeto_etapas) data.projeto_etapas.sort((a, b) => a.ordem - b.ordem);
