@@ -96,7 +96,7 @@ async function _carregarDashExec() {
           <table class="tabela">
             <thead><tr>
               <th>Projeto</th><th>Setor</th>
-              <th>Etapas exec.</th><th>Concluídas</th><th>Atrasadas</th>
+              <th>Etapas cad.</th><th>Concluídas</th><th>Atrasadas</th>
               <th>% Execução</th><th>Prazo final</th>
             </tr></thead>
             <tbody>
