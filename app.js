@@ -27,7 +27,8 @@ const ROTAS = {
   servicos:   telaServicos,
   importar:   telaImportar,
   biblioteca: telaBiblioteca,
-  projetos: telaProjetos
+  projetos: telaProjetos,
+  proj_acompanhamento: telaProjAcompanhamento
 };
 
 function navegar(rota) {
