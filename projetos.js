@@ -1,7 +1,6 @@
-'use strict';
 // ─── projetos.js — lista de projetos + cadastro ───────────────────────
 
-let _prjPerfis = null;
+var _prjPerfis = null;
 async function _prjCarregarPerfis() {
   if (!_prjPerfis) _prjPerfis = await dbListarPerfis();
   return _prjPerfis;
@@ -154,7 +153,7 @@ async function prjAcaoExcluir(id, titulo) {
 // ══════════════════════════════════════════════════════════════════════
 // MODAL NOVO PROJETO
 // ══════════════════════════════════════════════════════════════════════
-let _novoEtapas = []; // { nome, prazo, peso_projeto }
+var _novoEtapas = []; // { nome, prazo, peso_projeto }
 
 function abrirModalNovoProjeto() {
   // Etapas padrão iniciais: usuário pode editar/adicionar; "Conclusão" é sempre a última

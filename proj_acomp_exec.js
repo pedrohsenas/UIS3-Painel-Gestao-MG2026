@@ -1,13 +1,12 @@
-'use strict';
 // ─── proj_acomp_exec.js — acompanhamento de etapas de execução ────────
 
-let paeStatus = '';
-let paeSetor  = '';
-let paePrio   = '';
-let paeResp   = '';
-let paeDe     = '';
-let paeAte    = '';
-let paeDados  = [];
+var paeStatus = '';
+var paeSetor  = '';
+var paePrio   = '';
+var paeResp   = '';
+var paeDe     = '';
+var paeAte    = '';
+var paeDados  = [];
 
 async function telaProjAcompExec() {
   window._ajudaChave = 'projetos';
