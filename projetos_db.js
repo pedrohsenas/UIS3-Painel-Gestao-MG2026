@@ -1,3 +1,4 @@
+'use strict';
 // ─── projetos_db.js — camada de dados de Projetos MG ──────────────────
 
 const SETORES_PROJETOS = [

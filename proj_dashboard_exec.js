@@ -1,6 +1,7 @@
+'use strict';
 // ─── proj_dashboard_exec.js — dashboard de execução de projetos ───────
 
-var _prjExecChart = null;
+let _prjExecChart = null;
 
 async function telaProjDashboardExec() {
   window._ajudaChave = 'projetos';

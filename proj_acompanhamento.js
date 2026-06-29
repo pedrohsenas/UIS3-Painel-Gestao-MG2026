@@ -1,12 +1,13 @@
+'use strict';
 // ─── proj_acompanhamento.js — Acompanhamento de Projetos MG ───────────
 
-var paStatus   = '';   // '' | pendente | em_andamento | concluido | cancelado | atrasado
-var paSetor    = '';
-var paPrio     = '';
-var paResp     = '';   // perfil_id do responsável de etapa
-var paDe       = '';
-var paAte      = '';
-var paDados    = [];   // projetos com etapas expandidas
+let paStatus   = '';   // '' | pendente | em_andamento | concluido | cancelado | atrasado
+let paSetor    = '';
+let paPrio     = '';
+let paResp     = '';   // perfil_id do responsável de etapa
+let paDe       = '';
+let paAte      = '';
+let paDados    = [];   // projetos com etapas expandidas
 
 async function telaProjAcompanhamento() {
   window._ajudaChave = 'projetos';

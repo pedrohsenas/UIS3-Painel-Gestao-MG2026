@@ -1,23 +1,23 @@
+'use strict';
 // ─── projeto_ficha.js — ficha do projeto (planejamento + execução) ────
 
-// Namespace para evitar conflito com outros arquivos
-var prjF_proj      = null;
-var prjF_aba       = 'plan';
-var prjF_etapaId   = null;
-var prjF_etapaTipo = 'plan';
+let _fichaProj      = null;
+let _fichaAba       = 'plan';
+let _fichaEtapaId   = null;
+let _fichaEtapaTipo = 'plan';
 
 // ══════════════════════════════════════════════════════════════════════
 // CARREGAMENTO
 // ══════════════════════════════════════════════════════════════════════
 async function abrirFichaProjeto(id, aba) {
   window._ajudaChave = 'projetos';
-  if (aba) prjF_aba = aba;
+  if (aba) _fichaAba = aba;
   setConteudo('<div class="loading"><div class="spinner"></div> Carregando projeto...</div>');
   try {
     await _prjCarregarPerfis();
-    prjF_proj = await prjBuscar(id);
+    _fichaProj = await prjBuscar(id);
     const sess = await dbSessao();
-    prjF_proj._meuAuthId = sess?.user?.id;
+    _fichaProj._meuAuthId = sess?.user?.id;
     _renderFicha();
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
@@ -26,15 +26,15 @@ async function abrirFichaProjeto(id, aba) {
 
 function _podeEditar() {
   if (PERFIL?.papel === 'gestor') return true;
-  const equipe = (prjF_proj?.projeto_equipe || []).map(e => e.perfil_id);
-  return equipe.includes(prjF_proj?._meuAuthId);
+  const equipe = (_fichaProj?.projeto_equipe || []).map(e => e.perfil_id);
+  return equipe.includes(_fichaProj?._meuAuthId);
 }
 
 // ══════════════════════════════════════════════════════════════════════
 // RENDER PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════
 function _renderFicha() {
-  const p      = prjF_proj;
+  const p      = _fichaProj;
   const gestor = PERFIL?.papel === 'gestor';
   const podeEditar = _podeEditar();
   const perfis = _prjPerfis || [];
@@ -65,10 +65,10 @@ function _renderFicha() {
 
     <!-- Abas Planejamento / Execução -->
     <div class="cat-tabs" style="margin-bottom:18px">
-      <button class="cat-tab ${prjF_aba==='plan'?'ativo':''}" onclick="_trocarAba('plan')">
+      <button class="cat-tab ${_fichaAba==='plan'?'ativo':''}" onclick="_trocarAba('plan')">
         &#128196; Planejamento <span style="font-family:var(--mono);font-size:11px">${pctPlan.toFixed(0)}%</span>
       </button>
-      <button class="cat-tab ${prjF_aba==='exec'?'ativo':''}" onclick="_trocarAba('exec')">
+      <button class="cat-tab ${_fichaAba==='exec'?'ativo':''}" onclick="_trocarAba('exec')">
         &#9881; Execução <span style="font-family:var(--mono);font-size:11px">${pctExec.toFixed(0)}%</span>
       </button>
     </div>
@@ -82,7 +82,7 @@ function _renderFicha() {
 }
 
 function _trocarAba(aba) {
-  prjF_aba = aba;
+  _fichaAba = aba;
   document.querySelectorAll('.cat-tab').forEach(el => {
     el.classList.toggle('ativo', el.textContent.includes(aba === 'plan' ? 'Planejamento' : 'Execução'));
   });
@@ -92,7 +92,7 @@ function _trocarAba(aba) {
 function _renderAba() {
   const el = document.getElementById('ficha-aba-conteudo');
   if (!el) return;
-  if (prjF_aba === 'plan') _renderAbaPlan(el);
+  if (_fichaAba === 'plan') _renderAbaPlan(el);
   else _renderAbaExec(el);
 }
 
@@ -100,7 +100,7 @@ function _renderAba() {
 // ABA PLANEJAMENTO
 // ══════════════════════════════════════════════════════════════════════
 function _renderAbaPlan(el) {
-  const p = prjF_proj;
+  const p = _fichaProj;
   const gestor = PERFIL?.papel === 'gestor';
   const podeEditar = _podeEditar();
   const perfis = _prjPerfis || [];
@@ -208,7 +208,7 @@ function _renderAbaPlan(el) {
 // ABA EXECUÇÃO
 // ══════════════════════════════════════════════════════════════════════
 function _renderAbaExec(el) {
-  const p = prjF_proj;
+  const p = _fichaProj;
   const gestor = PERFIL?.papel === 'gestor';
   const podeEditar = _podeEditar();
   const etapas = p.projeto_exec_etapas || [];
@@ -425,23 +425,23 @@ function _renderCardEtapa(et, tipo) {
 // MODAL DE ETAPA (planejamento e execução)
 // ══════════════════════════════════════════════════════════════════════
 async function abrirModalEtapa(etapaId, tipo) {
-  prjF_etapaId   = etapaId;
-  prjF_etapaTipo = tipo || 'plan';
+  _fichaEtapaId   = etapaId;
+  _fichaEtapaTipo = tipo || 'plan';
   await _renderModalEtapa();
 }
 
 function _getEtapaAtual() {
-  const lista = prjF_etapaTipo === 'exec'
-    ? (prjF_proj?.projeto_exec_etapas || [])
-    : (prjF_proj?.projeto_etapas || []);
-  return lista.find(e => e.id === prjF_etapaId);
+  const lista = _fichaEtapaTipo === 'exec'
+    ? (_fichaProj?.projeto_exec_etapas || [])
+    : (_fichaProj?.projeto_etapas || []);
+  return lista.find(e => e.id === _fichaEtapaId);
 }
 
 async function _renderModalEtapa() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
-  const tipo = prjF_etapaTipo;
-  const p = prjF_proj;
+  const tipo = _fichaEtapaTipo;
+  const p = _fichaProj;
   const gestor = PERFIL?.papel === 'gestor';
   const podeEditar = _podeEditar();
   const perfis = _prjPerfis || [];
@@ -454,7 +454,7 @@ async function _renderModalEtapa() {
   const check  = (etapa[checkKey]  || []).sort((a,b) => a.id>b.id?1:-1);
   const coments= (etapa[comentKey] || []).sort((a,b) => a.criado_em>b.criado_em?1:-1);
   const fotos = tipo === 'exec'
-    ? (prjF_proj?.projeto_fotos||[]).filter(f => f.exec_etapa_id === etapa.id)
+    ? (_fichaProj?.projeto_fotos||[]).filter(f => f.exec_etapa_id === etapa.id)
     : (etapa.projeto_fotos || []);
   const pEt    = calcFn(etapa);
   const pesoTotalCheck = check.reduce((s,c)=>s+(c.peso||1),0);
@@ -598,12 +598,12 @@ async function _renderModalEtapa() {
 
 function fecharModalEtapa() {
   document.getElementById('prj-etapa-modal-root').innerHTML = '';
-  prjF_etapaId = null;
+  _fichaEtapaId = null;
 }
 
 // ── Atualiza % nas abas sem recriar a ficha inteira ──
 function _atualizarBotoesAba() {
-  const p = prjF_proj;
+  const p = _fichaProj;
   const pctPlan = prjCalcProgresso(p.projeto_etapas || []);
   const pctExec = prjExecCalcProgresso(p.projeto_exec_etapas || []);
   const btns = document.querySelectorAll('.cat-tabs .cat-tab');
@@ -613,13 +613,13 @@ function _atualizarBotoesAba() {
 
 // ── Verifica se todas as etapas exec estão concluídas e propõe concluir o projeto ──
 async function _verificarConclusaoProjeto() {
-  const etapas = prjF_proj.projeto_exec_etapas || [];
+  const etapas = _fichaProj.projeto_exec_etapas || [];
   if (!etapas.length) return;
   const todasConcluidas = etapas.every(e => e.status === 'concluida');
-  if (todasConcluidas && prjF_proj.status !== 'concluido') {
+  if (todasConcluidas && _fichaProj.status !== 'concluido') {
     if (confirm('Todas as etapas de execução foram concluídas!\nDeseja marcar o projeto como "Concluído"?')) {
-      await prjAtualizar(prjF_proj.id, { status: 'concluido' });
-      prjF_proj.status = 'concluido';
+      await prjAtualizar(_fichaProj.id, { status: 'concluido' });
+      _fichaProj.status = 'concluido';
       // Atualiza badge de status no cabeçalho sem recriar a ficha
       const tituloEl = document.querySelector('.ficha-titulo');
       if (tituloEl) {
@@ -636,7 +636,7 @@ async function _verificarConclusaoProjeto() {
 async function _etapaSalvar() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
-  const tipo    = prjF_etapaTipo;
+  const tipo    = _fichaEtapaTipo;
   const isExec  = tipo === 'exec';
   const statusEl = document.getElementById('met-status');
   let   novoStatus = statusEl?.value || etapa.status;
@@ -785,9 +785,9 @@ async function _etapaSalvar() {
 
   // ── Reabriu etapa → projeto volta para Em andamento se estava Concluído ──
   if (novoStatus !== 'concluida' && etapa.status === 'concluida' &&
-      prjF_proj.status === 'concluido') {
-    await prjAtualizar(prjF_proj.id, { status: 'em_andamento' });
-    prjF_proj.status = 'em_andamento';
+      _fichaProj.status === 'concluido') {
+    await prjAtualizar(_fichaProj.id, { status: 'em_andamento' });
+    _fichaProj.status = 'em_andamento';
     _mostrarFeedback('Projeto reaberto automaticamente para Em andamento');
   }
 
@@ -922,20 +922,20 @@ async function _fotosAdicionar(projetoId, etapaId, input, tipo) {
       if (tipo === 'exec') await prjUploadFoto(projetoId, null, blob, etapaId);
       else await prjUploadFoto(projetoId, etapaId, blob, null);
     }
-    prjF_proj = await prjBuscar(projetoId);
+    _fichaProj = await prjBuscar(projetoId);
     await _renderModalEtapa();
   } catch (e) { alert('Erro ao enviar foto: ' + e.message); }
 }
 
 async function _fotoExcluir(id, caminho) {
   if (!confirm('Excluir esta foto?')) return;
-  const tipo = prjF_etapaTipo;
+  const tipo = _fichaEtapaTipo;
   // fotos exec em projeto_fotos por exec_etapa_id
   try {
     await prjFotoExcluir(id, caminho);
     const etapa = _getEtapaAtual();
   if (tipo === 'exec') {
-    if (prjF_proj?.projeto_fotos) prjF_proj.projeto_fotos = prjF_proj.projeto_fotos.filter(f=>f.id!==id);
+    if (_fichaProj?.projeto_fotos) _fichaProj.projeto_fotos = _fichaProj.projeto_fotos.filter(f=>f.id!==id);
   } else {
     if (etapa) etapa.projeto_fotos = (etapa.projeto_fotos||[]).filter(f=>f.id!==id);
   }
@@ -962,15 +962,15 @@ async function _prjFotosProjetoAdicionar(input) {
   const files = [...input.files]; if (!files.length) return;
   input.parentElement.childNodes[0].textContent = ' Enviando...';
   try {
-    for (const file of files) { const blob = await _prjComprimirFoto(file); await prjUploadFoto(prjF_proj.id, null, blob, null); }
-    prjF_proj = await prjBuscar(prjF_proj.id); _renderFicha();
+    for (const file of files) { const blob = await _prjComprimirFoto(file); await prjUploadFoto(_fichaProj.id, null, blob, null); }
+    _fichaProj = await prjBuscar(_fichaProj.id); _renderFicha();
   } catch (e) { alert('Erro: ' + e.message); }
 }
 async function _prjFotoProjetoExcluir(id, caminho) {
   if (!confirm('Excluir esta foto?')) return;
   try {
     await prjFotoExcluir(id, caminho);
-    if (prjF_proj.projeto_fotos) prjF_proj.projeto_fotos = prjF_proj.projeto_fotos.filter(f=>f.id!==id);
+    if (_fichaProj.projeto_fotos) _fichaProj.projeto_fotos = _fichaProj.projeto_fotos.filter(f=>f.id!==id);
     document.getElementById('pfoto-'+id)?.remove();
   } catch(e) { alert('Erro: '+e.message); }
 }
@@ -983,11 +983,11 @@ async function _prjSalvarInfo() {
   if (status) campos.status = status;
   if (prio)   campos.prioridade = prio;
   try {
-    await prjAtualizar(prjF_proj.id, campos);
-    Object.assign(prjF_proj, campos);
+    await prjAtualizar(_fichaProj.id, campos);
+    Object.assign(_fichaProj, campos);
     // Atualiza badge no cabeçalho em tempo real
     const badgeEl = document.querySelector('.ficha-titulo .ac-cont, .ficha-titulo .badge-status');
-    if (badgeEl) badgeEl.outerHTML = _prjBadgeStatus(prjF_proj.status);
+    if (badgeEl) badgeEl.outerHTML = _prjBadgeStatus(_fichaProj.status);
     _mostrarFeedback('Informações salvas');
   } catch(e) { alert('Erro: '+e.message); }
 }
@@ -995,15 +995,15 @@ async function _prjSalvarInfo() {
 async function _prjSalvarDescricao() {
   const txt = document.getElementById('fp-descricao')?.value ?? '';
   try {
-    await prjAtualizar(prjF_proj.id, { descricao: txt });
-    prjF_proj.descricao = txt;
+    await prjAtualizar(_fichaProj.id, { descricao: txt });
+    _fichaProj.descricao = txt;
     _mostrarFeedback('Descrição salva');
   } catch(e) { alert('Erro: '+e.message); }
 }
 
 async function _prjSalvarEquipe() {
   const ids = [...document.querySelectorAll('#fp-equipe input:checked')].map(el => el.value);
-  try { await prjEquipeDefinir(prjF_proj.id, ids); }
+  try { await prjEquipeDefinir(_fichaProj.id, ids); }
   catch(e) { alert('Erro ao salvar equipe: '+e.message); }
 }
 
@@ -1019,18 +1019,18 @@ function _mostrarFeedback(msg) {
 async function _execAdicionarEtapa() {
   const nome = prompt('Nome da nova etapa de execução:');
   if (!nome?.trim()) return;
-  const etapas = prjF_proj.projeto_exec_etapas || [];
+  const etapas = _fichaProj.projeto_exec_etapas || [];
   const ordem = Math.max(...etapas.map(e => e.ordem), 0) + 1;
   try {
-    await prjExecEtapaCriar({ projeto_id: prjF_proj.id, nome: nome.trim(), ordem, peso_projeto: 1, status: 'pendente' });
-    prjF_proj = await prjBuscar(prjF_proj.id);
+    await prjExecEtapaCriar({ projeto_id: _fichaProj.id, nome: nome.trim(), ordem, peso_projeto: 1, status: 'pendente' });
+    _fichaProj = await prjBuscar(_fichaProj.id);
     _renderFicha(); _trocarAba('exec');
   } catch(e) { alert('Erro: '+e.message); }
 }
 
 // ── Modal gerenciar etapas (plan e exec) ──
 function _abrirModalGerenciarEtapas(tipo) {
-  const etapas = tipo === 'exec' ? (prjF_proj.projeto_exec_etapas||[]) : (prjF_proj.projeto_etapas||[]);
+  const etapas = tipo === 'exec' ? (_fichaProj.projeto_exec_etapas||[]) : (_fichaProj.projeto_etapas||[]);
   document.getElementById('prj-modal-root').innerHTML = `
     <div class="prj-overlay" onclick="if(event.target===this)_fecharModalGerenciar()">
       <div class="prj-modal" style="max-width:620px">
@@ -1090,7 +1090,7 @@ function _abrirModalGerenciarEtapas(tipo) {
 
 function _fecharModalGerenciar() {
   document.getElementById('prj-modal-root').innerHTML = '';
-  abrirFichaProjeto(prjF_proj.id, prjF_aba);
+  abrirFichaProjeto(_fichaProj.id, _fichaAba);
 }
 
 async function _gedSalvarEtapa(id, tipo) {
@@ -1127,7 +1127,7 @@ async function _gedExcluirEtapa(id, tipo, nome) {
 }
 
 async function _gedAdicionarEtapa(tipo) {
-  const etapas = tipo==='exec' ? (prjF_proj.projeto_exec_etapas||[]) : (prjF_proj.projeto_etapas||[]);
+  const etapas = tipo==='exec' ? (_fichaProj.projeto_exec_etapas||[]) : (_fichaProj.projeto_etapas||[]);
   const conclusao = etapas.find(e=>e.fixo);
   const ordem = conclusao ? conclusao.ordem : Math.max(...etapas.map(e=>e.ordem),0)+1;
   if (conclusao) {
@@ -1136,15 +1136,15 @@ async function _gedAdicionarEtapa(tipo) {
   }
   const fn = tipo==='exec' ? prjExecEtapaCriar : prjEtapaCriar;
   try {
-    await fn({ projeto_id:prjF_proj.id, nome:'Nova etapa', ordem, peso_projeto:1, status:'pendente' });
-    prjF_proj = await prjBuscar(prjF_proj.id);
+    await fn({ projeto_id:_fichaProj.id, nome:'Nova etapa', ordem, peso_projeto:1, status:'pendente' });
+    _fichaProj = await prjBuscar(_fichaProj.id);
     _abrirModalGerenciarEtapas(tipo);
   } catch(e) { alert('Erro: '+e.message); }
 }
 
 // ── Modal editar projeto ──
 function _abrirModalEditarProjeto() {
-  const p = prjF_proj;
+  const p = _fichaProj;
   document.getElementById('prj-modal-root').innerHTML = `
     <div class="prj-overlay" onclick="if(event.target===this)_fecharModalEditarProjeto()">
       <div class="prj-modal" style="max-width:500px">
@@ -1177,9 +1177,9 @@ async function _prjSalvarEdicao() {
   const prazo = document.getElementById('ep-prazo').value;
   const setor  = document.getElementById('ep-setor').value;
   try {
-    await prjAtualizar(prjF_proj.id, { titulo, setor:setor||null, prazo_final:prazo||null });
+    await prjAtualizar(_fichaProj.id, { titulo, setor:setor||null, prazo_final:prazo||null });
     _fecharModalEditarProjeto();
-    prjF_proj = await prjBuscar(prjF_proj.id);
+    _fichaProj = await prjBuscar(_fichaProj.id);
     _renderFicha();
   } catch(e) { alert('Erro: '+e.message); }
 }

@@ -1,3 +1,4 @@
+'use strict';
 // ─── proj_dashboard.js — dashboard de Projetos MG ─────────────────────
 
 async function telaProjDashboard() {
