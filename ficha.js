@@ -19,6 +19,7 @@ async function abrirFicha(id) {
     if (PERFIL?.papel === 'gestor') {
       acAtivarRolamento('e-rol-diant');
       acAtivarRolamento('e-rol-tras');
+      _fichaInitSaveBar();
     }
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
@@ -181,7 +182,7 @@ function renderFicha() {
           </div>
         </div>
 
-        ${gestor ? `<button class="btn" id="btn-salvar-ficha" onclick="salvarFicha()">Salvar alterações</button>` : ''}
+        
       </div>
 
       <div class="ficha-col">
@@ -262,9 +263,22 @@ async function definirPrincipal(fotoId, jaEhPrincipal) {
   } catch (e) { alert('Erro: ' + e.message); }
 }
 
+// Inicializa barra de salvamento e observa campos editáveis da ficha
+function _fichaInitSaveBar() {
+  if (PERFIL?.papel !== 'gestor') return;
+  if (typeof SaveBar === 'undefined') return;
+  SaveBar.init({ onSave: salvarFicha, contexto: 'máquina' });
+  const cont = document.getElementById('conteudo');
+  if (!cont) return;
+  cont.querySelectorAll('input, select, textarea').forEach(el => {
+    if (el.type === 'file' || el._sbBound) return;
+    el._sbBound = true;
+    const ev = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(ev, () => SaveBar.markDirty());
+  });
+}
+
 async function salvarFicha() {
-  const btn = document.getElementById('btn-salvar-ficha');
-  btn.disabled = true; btn.textContent = 'Salvando...';
   const num = id => { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
   try {
     await dbAtualizarMaquina(fichaAtual.id, {
@@ -294,11 +308,9 @@ async function salvarFicha() {
       status_coleta: document.getElementById('e-status-coleta').value,
       anotacoes_coleta: document.getElementById('e-anotacoes').value.trim()
     });
-    btn.textContent = '✓ Salvo';
-    setTimeout(() => { btn.disabled = false; btn.textContent = 'Salvar alterações'; }, 1500);
+    // SaveBar cuida do feedback visual de sucesso
   } catch (e) {
-    alert('Erro ao salvar: ' + e.message);
-    btn.disabled = false; btn.textContent = 'Salvar alterações';
+    throw e; // SaveBar exibe o erro
   }
 }
 

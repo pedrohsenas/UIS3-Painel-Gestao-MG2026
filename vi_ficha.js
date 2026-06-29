@@ -35,6 +35,7 @@ async function viAbrirFicha(id) {
   try {
     viFichaAtual = await viEquipamento(id);
     viRenderFicha();
+    _viFichaInitSaveBar();
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
   }
@@ -172,7 +173,7 @@ function viRenderFicha() {
           </div>
         </div>
 
-        ${gestor ? `<button class="btn" id="vi-btn-salvar" onclick="viSalvarFicha()">Salvar alterações</button>` : ''}
+        
       </div>
 
       <div class="ficha-col">
@@ -250,9 +251,21 @@ async function viAlternarPlanejado(cb, servico) {
   } catch (e) { alert('Erro: ' + e.message); cb.checked = !cb.checked; cb.disabled = false; }
 }
 
+function _viFichaInitSaveBar() {
+  if (PERFIL?.papel !== 'gestor') return;
+  if (typeof SaveBar === 'undefined') return;
+  SaveBar.init({ onSave: viSalvarFicha, contexto: 'equipamento' });
+  const cont = document.getElementById('conteudo');
+  if (!cont) return;
+  cont.querySelectorAll('input, select, textarea').forEach(el => {
+    if (el.type === 'file' || el._sbBound) return;
+    el._sbBound = true;
+    const ev = (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(ev, () => SaveBar.markDirty());
+  });
+}
+
 async function viSalvarFicha() {
-  const btn = document.getElementById('vi-btn-salvar');
-  btn.disabled = true; btn.textContent = 'Salvando...';
   const ehInst = viFichaAtual.dominio === 'instrumento';
   const num = id => { const el = document.getElementById(id); if (!el) return null; const v = el.value; return v === '' ? null : parseFloat(v); };
   const val = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
@@ -277,9 +290,7 @@ async function viSalvarFicha() {
       campos.condicao = document.querySelector('input[name="ve-condicao"]:checked')?.value || 'ok';
     }
     await viAtualizarEquipamento(viFichaAtual.id, campos);
-    btn.textContent = '✓ Salvo';
-    setTimeout(() => { btn.disabled = false; btn.textContent = 'Salvar alterações'; }, 1500);
-  } catch (e) { alert('Erro ao salvar: ' + e.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; }
+  } catch (e) { throw e; }
 }
 
 async function viArquivar() {

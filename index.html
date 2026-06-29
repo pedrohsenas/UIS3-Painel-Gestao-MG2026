@@ -524,6 +524,104 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .prj-etapa-row { flex-wrap: wrap; }
 }
 
+
+/* ════════════════════════════════════════════════════════════════════
+   BARRA DE SALVAMENTO CENTRAL (save_manager.js)
+   ════════════════════════════════════════════════════════════════════ */
+.save-bar {
+  position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 150%);
+  display: flex; align-items: center; gap: 18px;
+  background: var(--bg1); border: 1px solid var(--line2);
+  border-radius: 14px; padding: 12px 16px 12px 20px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18); z-index: 90;
+  min-width: 340px; max-width: calc(100vw - 32px);
+  opacity: 0; transition: transform .26s cubic-bezier(.2,.8,.3,1), opacity .2s;
+  pointer-events: none;
+}
+.save-bar.save-bar-visivel { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.save-bar-msg { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
+.save-bar-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.save-bar-texto { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.save-bar-acoes { display: flex; gap: 8px; flex-shrink: 0; }
+
+.save-bar-sujo     { border-color: var(--warn-bd); }
+.save-bar-sujo     .save-bar-icon  { color: var(--warn); }
+.save-bar-sujo     .save-bar-texto { color: var(--warn); }
+.save-bar-salvando .save-bar-icon::before {
+  content: ''; display: inline-block; width: 13px; height: 13px;
+  border: 2px solid var(--line2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle;
+}
+.save-bar-salvando .save-bar-texto { color: var(--tx1); }
+.save-bar-ok       { border-color: var(--ok-bd); background: var(--ok-bg); }
+.save-bar-ok       .save-bar-icon  { color: var(--ok); }
+.save-bar-ok       .save-bar-texto { color: var(--ok); }
+.save-bar-ok       .save-bar-acoes { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ════════════════════════════════════════════════════════════════════
+   OTIMIZAÇÃO MOBILE CONSOLIDADA
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+  /* Alvos de toque maiores */
+  .nav-item { padding: 13px 14px; font-size: 15px; }
+  .btn { padding: 11px 16px; font-size: 15px; min-height: 44px; }
+  .btn-mini { padding: 9px 13px; min-height: 38px; }
+  select, input[type="text"], input[type="date"], input[type="number"],
+  input[type="email"], input[type="password"], textarea {
+    font-size: 16px; /* evita zoom automático no iOS */
+    min-height: 44px;
+  }
+
+  /* Tabelas com rolagem horizontal suave e dica visual */
+  .tabela-wrap { -webkit-overflow-scrolling: touch; overflow-x: auto; border-radius: var(--r); }
+  .tabela { min-width: 560px; }
+  .tabela th, .tabela td { padding: 10px 10px; }
+
+  /* Esconder colunas menos críticas em telas muito estreitas */
+  .tabela .col-opcional { display: none; }
+
+  /* Overlay/modal de projetos: tela cheia no mobile */
+  .prj-overlay { padding: 0; align-items: stretch; }
+  .prj-modal {
+    max-width: 100%; width: 100%; min-height: 100dvh;
+    border-radius: 0; padding: 18px 16px 90px;
+  }
+  .prj-etapa-modal { max-height: none; }
+
+  /* Filtros de acompanhamento empilhados */
+  .ac-filtros { grid-template-columns: 1fr 1fr; }
+
+  /* Ficha em coluna única */
+  .ficha-grid { grid-template-columns: 1fr; }
+
+  /* KPIs em 2 colunas */
+  .kpi-grid, .prj-kpis { grid-template-columns: repeat(2, 1fr); }
+
+  /* Barra de salvamento ocupa largura total no rodapé */
+  .save-bar {
+    left: 8px; right: 8px; bottom: 8px; transform: translateY(150%);
+    min-width: 0; width: auto; flex-direction: column; align-items: stretch;
+    gap: 10px; padding: 14px;
+  }
+  .save-bar.save-bar-visivel { transform: translateY(0); }
+  .save-bar-acoes { width: 100%; }
+  .save-bar-acoes .btn { flex: 1; }
+
+  /* Tabs de categoria roláveis horizontalmente */
+  .cat-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .cat-tab { white-space: nowrap; flex-shrink: 0; }
+
+  /* Abas planejamento/execução */
+  .ficha-titulo { font-size: 15px; }
+}
+
+@media (max-width: 460px) {
+  .ac-filtros { grid-template-columns: 1fr; }
+  .kpi-grid, .prj-kpis { grid-template-columns: 1fr 1fr; }
+  .conteudo { padding: 14px 10px; }
+}
+
 </style>
 </head>
 <body>
@@ -531,6 +629,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 <script src="supabase.min.js"></script>
 <script src="jszip.min.js"></script>
 <script src="config.js"></script>
+<script src="save_manager.js"></script>
 <script src="db.js"></script>
 <script src="importar.js"></script>
 <script src="biblioteca.js"></script>

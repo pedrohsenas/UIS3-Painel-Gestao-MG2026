@@ -30,12 +30,18 @@ const ROTAS = {
 };
 
 function navegar(rota) {
+  // Se há alterações não salvas, confirma antes de trocar de tela
+  if (typeof SaveBar !== 'undefined' && SaveBar.isDirty()) {
+    if (!confirm('Há alterações não salvas que serão perdidas. Continuar?')) return;
+    SaveBar.reset();
+  }
   // Salva posição de scroll da rota anterior antes de sair
   const conteudo = document.getElementById('conteudo');
   const rotaAtual = sessionStorage.getItem('rota');
   if (conteudo && rotaAtual) {
     sessionStorage.setItem('scroll:' + rotaAtual, conteudo.scrollTop);
   }
+  if (typeof SaveBar !== 'undefined') SaveBar.reset();
 
   window._ajudaChave = rota;
   sessionStorage.setItem('rota', rota);
