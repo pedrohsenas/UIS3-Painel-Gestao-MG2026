@@ -213,6 +213,7 @@ function _renderAbaExec(el) {
   const podeEditar = _podeEditar();
   const etapas = p.projeto_exec_etapas || [];
   const pct = prjExecCalcProgresso(etapas);
+  const proj = _prjProjecaoTermino(etapas);
 
   el.innerHTML = `
     <div class="ficha-grid">
@@ -225,13 +226,19 @@ function _renderAbaExec(el) {
             </div>
             <span style="font-family:var(--mono);font-size:18px;font-weight:700;color:#16a34a">${pct.toFixed(1)}%</span>
           </div>
-          <p class="page-sub">${etapas.length} etapa(s) de execução</p>
+          <p class="page-sub">${etapas.length} etapa(s) · ${etapas.filter(e=>e.status==='concluida').length} concluída(s)</p>
+          ${proj.dataTerminoPrev ? `
+          <div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:${proj.desvioDias>0?'var(--crit-bg)':proj.desvioDias<0?'var(--ok-bg)':'var(--bg0)'};border:1px solid ${proj.desvioDias>0?'var(--crit-bd)':proj.desvioDias<0?'var(--ok-bd)':'var(--line2)'}">
+            <div style="font-size:12px;color:var(--tx2);margin-bottom:2px">Projeção de término</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700">${new Date(proj.dataTerminoPrev+'T12:00:00').toLocaleDateString('pt-BR')}</div>
+            ${proj.desvioDias !== 0 ? `<div style="font-size:12px;margin-top:3px;color:${proj.desvioDias>0?'var(--crit)':'#16a34a'}">${proj.desvioDias>0?'▲ +'+proj.desvioDias+' dia(s) de atraso':'▼ '+Math.abs(proj.desvioDias)+' dia(s) adiantado'}</div>` : '<div style="font-size:12px;color:#16a34a;margin-top:3px">▶ No prazo</div>'}
+          </div>` : ''}
         </div>
 
-        <!-- Comparativo planejado x realizado -->
+        <!-- Gantt: Previsto × Realizado -->
         <div class="card-sec">
-          <h3 class="card-sec-titulo">Planejado × Realizado</h3>
-          ${_renderComparativo(p)}
+          <h3 class="card-sec-titulo">Cronograma — Previsto × Realizado</h3>
+          ${_renderGantt(etapas)}
         </div>
       </div>
 
@@ -249,42 +256,133 @@ function _renderAbaExec(el) {
     </div>`;
 }
 
-function _renderComparativo(p) {
-  const etaplasPlan = p.projeto_etapas || [];
-  const etapasExec  = p.projeto_exec_etapas || [];
-  const pctPlan = prjCalcProgresso(etaplasPlan);
-  const pctExec = prjExecCalcProgresso(etapasExec);
-  const diff = pctExec - pctPlan;
-  const diffColor = diff >= 0 ? '#16a34a' : '#dc2626';
-  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+// ── Gantt simplificado ──
+function _renderGantt(etapas) {
+  const comDatas = etapas.filter(e => e.data_inicio_prev || e.data_fim_prev || e.data_inicio || e.data_fim);
+  if (!comDatas.length) return '<p class="page-sub">Defina datas previstas nas etapas para visualizar o cronograma.</p>';
 
-  return `
-    <div style="display:flex;gap:24px;margin-bottom:14px">
-      <div style="flex:1;text-align:center">
-        <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)">${pctPlan.toFixed(0)}%</div>
-        <div style="font-size:12px;color:var(--tx2);margin-top:4px">Planejamento</div>
+  // Intervalo total
+  const todasDatas = [];
+  comDatas.forEach(e => {
+    if (e.data_inicio_prev) todasDatas.push(e.data_inicio_prev);
+    if (e.data_fim_prev)    todasDatas.push(e.data_fim_prev);
+    if (e.data_inicio)      todasDatas.push(e.data_inicio);
+    if (e.data_fim)         todasDatas.push(e.data_fim);
+  });
+  todasDatas.push(new Date().toISOString().slice(0,10));
+  todasDatas.sort();
+  const minD = new Date(todasDatas[0]+'T00:00:00');
+  const maxD = new Date(todasDatas[todasDatas.length-1]+'T00:00:00');
+  const spanTotal = Math.max((maxD - minD)/86400000, 1);
+
+  function pct(d) { return Math.min(100, Math.max(0, (new Date(d+'T00:00:00')-minD)/86400000/spanTotal*100)); }
+  function wid(d1, d2) { return Math.max(0.5, pct(d2)-pct(d1)); }
+
+  const hojeIso = new Date().toISOString().slice(0,10);
+  const hojePct = pct(hojeIso);
+
+  let html = `<div style="position:relative;margin-bottom:4px">
+    <div style="position:absolute;left:${hojePct.toFixed(1)}%;top:0;bottom:0;width:2px;background:var(--accent);opacity:0.5;z-index:2"></div>`;
+
+  comDatas.forEach(et => {
+    const temPrev = et.data_inicio_prev && et.data_fim_prev;
+    const temReal = et.data_inicio && et.data_fim;
+    // % avançado pela etapa baseado em checklist × dias previstos
+    const pctEt = prjExecCalcProgressoEtapa(et);
+    // Desvio
+    let desvio = '';
+    if (temPrev && temReal) {
+      const dfimPrev = new Date(et.data_fim_prev+'T00:00:00');
+      const dfimReal = new Date(et.data_fim+'T00:00:00');
+      const dias = Math.round((dfimReal-dfimPrev)/86400000);
+      if (dias !== 0) desvio = `<span style="font-family:var(--mono);font-size:10px;color:${dias>0?'var(--crit)':'#16a34a'};margin-left:4px">${dias>0?'+':''}${dias}d</span>`;
+    } else if (temPrev && et.status !== 'concluida') {
+      // Projeção: quanto falta × ratio de andamento
+      const dur = et.duracao_prev_dias || Math.round((new Date(et.data_fim_prev+'T00:00:00')-new Date(et.data_inicio_prev+'T00:00:00'))/86400000);
+      if (dur > 0) {
+        const diasRestPrev = dur * (1 - pctEt/100);
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const iniReal = et.data_inicio ? new Date(et.data_inicio+'T00:00:00') : hoje;
+        const projFim = new Date(iniReal.getTime() + diasRestPrev*86400000/(pctEt<100?1:1));
+        projFim.setDate(projFim.getDate() + Math.round(diasRestPrev));
+        const diasDesvio = Math.round((projFim - new Date(et.data_fim_prev+'T00:00:00'))/86400000);
+        if (Math.abs(diasDesvio) > 0) desvio = `<span style="font-family:var(--mono);font-size:10px;color:${diasDesvio>0?'var(--crit)':'#16a34a'};margin-left:4px">proj. ${diasDesvio>0?'+':''}${diasDesvio}d</span>`;
+      }
+    }
+
+    html += `<div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:12px;font-weight:600">
+        <span style="flex:0 0 auto;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(et.nome)}">${escHtml(et.nome)}</span>
+        <span class="badge-etapa ${et.status}" style="font-size:10px;padding:1px 7px">${_prjNomeStatus(et.status)}</span>
+        ${desvio}
+        <span style="font-family:var(--mono);font-size:10px;color:var(--tx2);margin-left:auto">${pctEt.toFixed(0)}%</span>
       </div>
-      <div style="flex:1;text-align:center">
-        <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:#16a34a">${pctExec.toFixed(0)}%</div>
-        <div style="font-size:12px;color:var(--tx2);margin-top:4px">Execução</div>
-      </div>
-      <div style="flex:1;text-align:center">
-        <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:${diffColor}">${diffStr}</div>
-        <div style="font-size:12px;color:var(--tx2);margin-top:4px">Variação</div>
-      </div>
-    </div>
-    <div style="margin-bottom:6px">
-      <div style="font-size:11px;color:var(--tx2);margin-bottom:3px">Planejamento</div>
-      <div class="prj-barra-wrap" style="height:10px">
-        <div class="prj-barra-fill" style="width:${pctPlan.toFixed(0)}%;height:10px;border-radius:5px"></div>
-      </div>
-    </div>
-    <div>
-      <div style="font-size:11px;color:var(--tx2);margin-bottom:3px">Execução</div>
-      <div class="prj-barra-wrap" style="height:10px">
-        <div class="prj-barra-fill" style="width:${pctExec.toFixed(0)}%;height:10px;border-radius:5px;background:#16a34a"></div>
+      <div style="position:relative;height:10px;background:var(--bg2);border-radius:5px;overflow:hidden">`;
+
+    // Barra prevista (cinza escuro)
+    if (temPrev) {
+      html += `<div style="position:absolute;left:${pct(et.data_inicio_prev).toFixed(1)}%;width:${wid(et.data_inicio_prev,et.data_fim_prev).toFixed(1)}%;height:100%;background:var(--bg3);border-radius:5px"></div>`;
+      // Preenchimento proporcional ao % do checklist sobre a barra prevista
+      const fillW = wid(et.data_inicio_prev,et.data_fim_prev) * pctEt/100;
+      html += `<div style="position:absolute;left:${pct(et.data_inicio_prev).toFixed(1)}%;width:${fillW.toFixed(1)}%;height:100%;background:#16a34a;border-radius:5px;opacity:0.5"></div>`;
+    }
+    // Barra real (verde)
+    if (temReal) {
+      html += `<div style="position:absolute;left:${pct(et.data_inicio).toFixed(1)}%;width:${wid(et.data_inicio,et.data_fim).toFixed(1)}%;height:100%;background:#16a34a;border-radius:5px"></div>`;
+    }
+
+    html += `</div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);margin-top:2px">
+        <span>${temPrev?'Prev: '+new Date(et.data_inicio_prev+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' – '+new Date(et.data_fim_prev+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):''}</span>
+        <span>${temReal?'Real: '+new Date(et.data_inicio+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' – '+new Date(et.data_fim+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):et.data_inicio?'Iniciou: '+new Date(et.data_inicio+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):''}</span>
       </div>
     </div>`;
+  });
+
+  html += `<div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--tx2)">
+    <span><span style="display:inline-block;width:12px;height:8px;background:var(--bg3);border-radius:3px;margin-right:4px"></span>Previsto</span>
+    <span><span style="display:inline-block;width:12px;height:8px;background:#16a34a;border-radius:3px;margin-right:4px"></span>Realizado</span>
+    <span><span style="display:inline-block;width:2px;height:12px;background:var(--accent);opacity:0.5;margin-right:4px;vertical-align:middle"></span>Hoje</span>
+  </div></div>`;
+  return html;
+}
+
+// ── Projeção de término do projeto (paralelo: max das projeções individuais) ──
+function _prjProjecaoTermino(etapas) {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  let maxPrevIso = null;
+  let desvioDiasTot = 0;
+  let pesoTot = 0;
+
+  for (const et of etapas) {
+    if (!et.data_fim_prev) continue;
+    const dfimPrev = new Date(et.data_fim_prev+'T00:00:00');
+    const durPrev = et.duracao_prev_dias
+      || (et.data_inicio_prev ? Math.max(1,Math.round((dfimPrev-new Date(et.data_inicio_prev+'T00:00:00'))/86400000)) : null);
+
+    if (et.status === 'concluida' && et.concluido_em) {
+      const concl = new Date(et.concluido_em); concl.setHours(0,0,0,0);
+      const dev = Math.round((concl-dfimPrev)/86400000);
+      desvioDiasTot += dev * (et.peso_projeto||1);
+      pesoTot += (et.peso_projeto||1);
+    } else if (durPrev) {
+      const pctEt = prjExecCalcProgressoEtapa(et);
+      const diasRestantes = durPrev * (1 - pctEt/100);
+      const iniRef = et.data_inicio ? new Date(et.data_inicio+'T00:00:00') : hoje;
+      const projFim = new Date(iniRef.getTime() + Math.round(diasRestantes)*86400000);
+      const dev = Math.round((projFim-dfimPrev)/86400000);
+      desvioDiasTot += dev * (et.peso_projeto||1);
+      pesoTot += (et.peso_projeto||1);
+    }
+
+    if (!maxPrevIso || et.data_fim_prev > maxPrevIso) maxPrevIso = et.data_fim_prev;
+  }
+
+  if (!maxPrevIso) return { dataTerminoPrev: null, desvioDias: 0 };
+  const desvioDias = pesoTot ? Math.round(desvioDiasTot/pesoTot) : 0;
+  const dataTermino = new Date(maxPrevIso+'T00:00:00');
+  dataTermino.setDate(dataTermino.getDate() + desvioDias);
+  return { dataTerminoPrev: dataTermino.toISOString().slice(0,10), desvioDias };
 }
 
 function _renderCardEtapa(et, tipo) {
@@ -380,10 +478,21 @@ async function _renderModalEtapa() {
         <div class="card-sec" style="margin-bottom:14px">
           <h3 class="card-sec-titulo">Controle</h3>
           ${tipo === 'exec' ? `
+          <div style="padding:10px 12px;background:var(--bg0);border-radius:8px;border:1px solid var(--line2);margin-bottom:12px">
+            <div style="font-size:11px;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Previsto</div>
+            <div class="row2">
+              <div class="field"><label>Início previsto</label>
+                <input id="met-inicio-prev" type="date" value="${etapa.data_inicio_prev||''}" ${podeEditar?'':'disabled'} /></div>
+              <div class="field"><label>Duração prevista (dias)</label>
+                <input id="met-dur-prev" type="number" min="1" max="999" value="${etapa.duracao_prev_dias||''}" placeholder="ex: 5" ${podeEditar?'':'disabled'} /></div>
+            </div>
+            ${etapa.data_inicio_prev && etapa.duracao_prev_dias ? `<p class="page-sub">Término previsto: ${new Date(new Date(etapa.data_inicio_prev+'T00:00:00').getTime()+(etapa.duracao_prev_dias)*86400000).toLocaleDateString('pt-BR')}</p>` : ''}
+          </div>
+          <div style="font-size:11px;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Realizado</div>
           <div class="row2" style="margin-bottom:10px">
-            <div class="field"><label>Data início</label>
+            <div class="field"><label>Data início real</label>
               <input id="met-inicio" type="date" value="${etapa.data_inicio||''}" ${podeEditar?'':'disabled'} /></div>
-            <div class="field"><label>Data fim</label>
+            <div class="field"><label>Data fim real</label>
               <input id="met-fim" type="date" value="${etapa.data_fim||''}" ${podeEditar?'':'disabled'} /></div>
           </div>` : `
           <div class="field" style="max-width:200px;margin-bottom:10px"><label>Prazo</label>
@@ -503,6 +612,16 @@ async function _etapaSalvar() {
   const campos = { status, responsavel_id: resp || null };
 
   if (isExec) {
+    campos.data_inicio_prev  = document.getElementById('met-inicio-prev')?.value || null;
+    campos.duracao_prev_dias = +(document.getElementById('met-dur-prev')?.value) || null;
+    // data_fim_prev calculada: inicio_prev + duracao_prev_dias
+    if (campos.data_inicio_prev && campos.duracao_prev_dias) {
+      const d = new Date(campos.data_inicio_prev+'T00:00:00');
+      d.setDate(d.getDate() + campos.duracao_prev_dias);
+      campos.data_fim_prev = d.toISOString().slice(0,10);
+    } else {
+      campos.data_fim_prev = null;
+    }
     campos.data_inicio = document.getElementById('met-inicio')?.value || null;
     campos.data_fim    = document.getElementById('met-fim')?.value    || null;
   } else {
@@ -778,8 +897,10 @@ function _abrirModalGerenciarEtapas(tipo) {
               <span class="prj-etapa-ord">${et.ordem}</span>
               <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:2" ${et.fixo?'disabled':''} />
               ${tipo==='exec' ? `
-                <input type="date" value="${et.data_inicio||''}" id="ged-ini-${et.id}" style="flex:1" title="Início" />
-                <input type="date" value="${et.data_fim||''}" id="ged-fim-${et.id}" style="flex:1" title="Fim" />
+                <input type="date" value="${et.data_inicio_prev||''}" id="ged-ini-prev-${et.id}" style="flex:1" title="Início previsto" placeholder="Início prev." />
+                <input type="number" min="1" max="999" value="${et.duracao_prev_dias||''}" id="ged-dur-${et.id}" style="flex:0 0 70px;padding:6px 8px" title="Duração prev. (dias)" placeholder="dias" />
+                <input type="date" value="${et.data_inicio||''}" id="ged-ini-${et.id}" style="flex:1" title="Início real" />
+                <input type="date" value="${et.data_fim||''}" id="ged-fim-${et.id}" style="flex:1" title="Fim real" />
               ` : `
                 <input type="date" value="${et.prazo||''}" id="ged-prazo-${et.id}" style="flex:1" title="Prazo" />
               `}
@@ -810,6 +931,13 @@ async function _gedSalvarEtapa(id, tipo) {
   if (!nome) { alert('Informe o nome.'); return; }
   const campos = { nome, peso_projeto: peso };
   if (tipo === 'exec') {
+    campos.data_inicio_prev  = document.getElementById('ged-ini-prev-'+id)?.value || null;
+    campos.duracao_prev_dias = +(document.getElementById('ged-dur-'+id)?.value) || null;
+    if (campos.data_inicio_prev && campos.duracao_prev_dias) {
+      const d = new Date(campos.data_inicio_prev+'T00:00:00');
+      d.setDate(d.getDate() + campos.duracao_prev_dias);
+      campos.data_fim_prev = d.toISOString().slice(0,10);
+    } else { campos.data_fim_prev = null; }
     campos.data_inicio = document.getElementById('ged-ini-'+id)?.value || null;
     campos.data_fim    = document.getElementById('ged-fim-'+id)?.value || null;
   } else {

@@ -15,7 +15,7 @@ async function prjListar() {
   const { data, error } = await sb.from('projetos')
     .select('*, ' +
       'projeto_etapas(id, nome, ordem, peso_projeto, status, prazo, responsavel_id, projeto_checklist(id, peso, concluido)), ' +
-      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
+      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, data_inicio_prev, data_fim_prev, duracao_prev_dias, concluido_em, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
     .order('criado_em', { ascending: false });
   if (error) throw error;
   if (data) data.forEach(p => {
@@ -246,7 +246,7 @@ async function prjListarResumido() {
     .select('id, titulo, setor, prazo_final, status, prioridade, criado_em, ' +
       'projeto_equipe(perfil_id), ' +
       'projeto_etapas(id, nome, ordem, peso_projeto, status, prazo, responsavel_id, projeto_checklist(id, peso, concluido)), ' +
-      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
+      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, data_inicio_prev, data_fim_prev, duracao_prev_dias, concluido_em, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
     .order('prazo_final', { ascending: true });
   if (error) throw error;
   if (data) data.forEach(p => {
@@ -260,7 +260,7 @@ async function prjListarResumido() {
 async function prjListarExecDash() {
   const { data, error } = await sb.from('projetos')
     .select('id, titulo, setor, prazo_final, status, prioridade, ' +
-      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, concluido_em, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
+      'projeto_exec_etapas(id, nome, ordem, peso_projeto, status, data_inicio, data_fim, data_inicio_prev, data_fim_prev, duracao_prev_dias, concluido_em, responsavel_id, projeto_exec_checklist(id, peso, concluido))')
     .neq('status', 'cancelado')
     .order('prazo_final', { ascending: true });
   if (error) throw error;

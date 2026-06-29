@@ -58,6 +58,14 @@ async function _carregarDashExec() {
         <div class="kpi ${etAtras>0?'kpi-alerta':''}"><div class="kpi-valor kpi-vermelho">${etAtras}</div><div class="kpi-rotulo">Etapas atrasadas</div></div>
         <div class="kpi"><div class="kpi-valor kpi-azul">${comExec.length}</div><div class="kpi-rotulo">Com execução iniciada</div></div>
       </div>
+      ${(() => {
+        // Projetos com desvio calculado
+        const atrasadosPrev = projetos.filter(p => {
+          const ets = p.projeto_exec_etapas||[];
+          return ets.some(e => e.data_fim_prev && e.status!=='concluida' && new Date(e.data_fim_prev+'T23:59:59') < hoje);
+        }).length;
+        return atrasadosPrev > 0 ? `<div class="alert-prazos">&#9888; ${atrasadosPrev} projeto(s) com etapas de execução além do prazo previsto.</div>` : '';
+      })()}
 
       <div class="dash-grid" style="grid-template-columns:1.5fr 1fr">
         <!-- Curva S de execução -->
@@ -96,7 +104,7 @@ async function _carregarDashExec() {
           <table class="tabela">
             <thead><tr>
               <th>Projeto</th><th>Setor</th>
-              <th>Etapas cad.</th><th>Concluídas</th><th>Atrasadas</th>
+              <th>Etapas exec.</th><th>Concluídas</th><th>Atrasadas</th>
               <th>% Execução</th><th>Prazo final</th>
             </tr></thead>
             <tbody>
@@ -145,7 +153,7 @@ function _desenharCurvaExec(todasEtapas) {
     return;
   }
 
-  const prazos    = todasEtapas.filter(e => e.data_fim).map(e => e.data_fim).sort();
+  const prazos    = todasEtapas.map(e => e.data_fim_prev || e.data_fim).filter(Boolean).sort();
   const conclusoes= todasEtapas.filter(e => e.concluido_em).map(e => e.concluido_em.slice(0,10)).sort();
 
   if (!prazos.length && !conclusoes.length) {
