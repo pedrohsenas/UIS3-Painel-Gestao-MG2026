@@ -409,7 +409,6 @@ async function _renderModalEtapa() {
           <div id="met-check-lista">
             ${check.length === 0 ? `<p class="page-sub">Nenhum item no checklist.</p>` :
               check.map(c => {
-                const pc = c.perfis?.nome || '';
                 return `
                 <div class="prj-check-item" id="ci-${c.id}">
                   <label style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
@@ -418,7 +417,6 @@ async function _renderModalEtapa() {
                     <span style="${c.concluido?'text-decoration:line-through;color:var(--tx2)':''}">${escHtml(c.descricao)}</span>
                   </label>
                   <span class="prj-check-peso">Peso ${c.peso||1}</span>
-                  ${pc ? `<span style="font-size:11px;color:var(--tx2)">${escHtml(pc)}</span>` : ''}
                   ${podeEditar ? `<button class="btn-mini btn-mini-danger" style="padding:2px 7px" onclick="_checkExcluir('${c.id}')">✕</button>` : ''}
                 </div>`;
               }).join('')}
@@ -430,17 +428,20 @@ async function _renderModalEtapa() {
           <h3 class="card-sec-titulo">Comentários</h3>
           <div id="met-coments" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
             ${coments.length === 0 ? `<p class="page-sub">Sem comentários.</p>` :
-              coments.map(c => `
+              coments.map(c => {
+                const autorNome = (_prjPerfis||[]).find(pf=>pf.id===c.autor_id)?.nome || '';
+                return `
               <div class="prj-coment" id="comt-${c.id}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                  <span style="font-size:12px;font-weight:600">${escHtml(c.perfis?.nome||'')}</span>
+                  <span style="font-size:12px;font-weight:600">${escHtml(autorNome)}</span>`;
                   <div style="display:flex;align-items:center;gap:6px">
                     <span style="font-size:11px;color:var(--tx2)">${new Date(c.criado_em).toLocaleString('pt-BR')}</span>
                     ${gestor ? `<button class="btn-mini btn-mini-danger" style="padding:2px 6px" onclick="_comentExcluir('${c.id}')">✕</button>` : ''}
                   </div>
                 </div>
                 <p style="margin-top:4px;font-size:14px;white-space:pre-wrap">${escHtml(c.texto)}</p>
-              </div>`).join('')}
+              </div>`;
+              }).join('')}
           </div>
           ${podeEditar ? `
           <textarea id="met-novo-coment" rows="2" placeholder="Adicionar comentário..." style="margin-bottom:8px"></textarea>
@@ -559,7 +560,7 @@ async function _comentAdicionar(etapaId) {
       lista.insertAdjacentHTML('beforeend', `
         <div class="prj-coment" id="comt-${novo.id}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <span style="font-size:12px;font-weight:600">${escHtml(novo.perfis?.nome||PERFIL?.nome||'')}</span>
+            <span style="font-size:12px;font-weight:600">${escHtml(PERFIL?.nome||'')}</span>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:11px;color:var(--tx2)">${new Date(novo.criado_em).toLocaleString('pt-BR')}</span>
               ${PERFIL?.papel==='gestor'?`<button class="btn-mini btn-mini-danger" style="padding:2px 6px" onclick="_comentExcluir('${novo.id}')">✕</button>`:''}

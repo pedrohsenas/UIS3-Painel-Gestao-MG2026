@@ -25,7 +25,7 @@ async function prjBuscar(id) {
             'projeto_equipe(perfil_id, perfis(id, nome, papel)), ' +
             'projeto_etapas(*, ' +
               'projeto_checklist(*), ' +
-              'projeto_comentarios(*, perfis(nome)), ' +
+              'projeto_comentarios(*), ' +
               'projeto_fotos(*)' +
             ')')
     .eq('id', id).single();
@@ -116,7 +116,7 @@ async function prjComentarioCriar(etapa_id, texto) {
   const sess = await dbSessao();
   const { data, error } = await sb.from('projeto_comentarios')
     .insert({ etapa_id, texto, autor_id: sess.user.id })
-    .select('*, perfis(nome)').single();
+    .select().single();
   if (error) throw error;
   return data;
 }
