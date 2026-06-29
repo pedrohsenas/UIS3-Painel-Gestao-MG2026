@@ -111,6 +111,33 @@ function _renderFichaProjeto() {
         </div>
 
         <div class="card-sec">
+          <h3 class="card-sec-titulo">Descrição</h3>
+          ${podeEditar ? `
+          <textarea id="fp-descricao" rows="4" placeholder="Descreva o escopo, objetivos e detalhes relevantes do projeto..."
+            style="margin-bottom:8px">${escHtml(p.descricao||'')}</textarea>
+          <button class="btn-mini" onclick="_prjSalvarDescricao()">Salvar descrição</button>` :
+          `<p style="font-size:14px;white-space:pre-wrap;color:var(--tx1)">${escHtml(p.descricao||'Sem descrição cadastrada.')}</p>`}
+        </div>
+
+        <div class="card-sec">
+          <h3 class="card-sec-titulo">Fotos do projeto</h3>
+          <div class="etapa-fotos" id="fp-fotos-projeto">
+            ${(p.projeto_fotos||[]).filter(f=>!f.etapa_id).map(f => `
+              <div class="etapa-foto-wrap" id="pfoto-${f.id}">
+                <img src="${prjUrlFoto(f.caminho_storage)}" class="etapa-foto"
+                  onclick="window.open('${prjUrlFoto(f.caminho_storage)}','_blank')" />
+                ${podeEditar ? `<button class="foto-del-btn" onclick="_prjFotoProjetoExcluir('${f.id}','${f.caminho_storage}')">&#x2715;</button>` : ''}
+              </div>`).join('')}
+          </div>
+          ${podeEditar ? `
+          <label class="btn btn-sec" style="margin-top:10px;display:inline-block;cursor:pointer">
+            + Adicionar fotos
+            <input type="file" accept="image/*" multiple style="display:none"
+              onchange="_prjFotosProjetoAdicionar(this)" />
+          </label>` : ''}
+        </div>
+
+        <div class="card-sec">
           <h3 class="card-sec-titulo">Equipe técnica</h3>
           ${gestor ? `
           <div class="prj-equipe-grid" id="fp-equipe">
@@ -628,6 +655,51 @@ async function _fotoExcluir(id, caminho) {
     const etapa = (_fichaProj.projeto_etapas||[]).find(e=>e.id===_fichaProjEtapaId);
     if (etapa) etapa.projeto_fotos = (etapa.projeto_fotos||[]).filter(f=>f.id!==id);
     document.getElementById('fw-' + id)?.remove();
+  } catch (e) {
+    alert('Erro: ' + e.message);
+  }
+}
+
+// ── Descrição do projeto ──
+async function _prjSalvarDescricao() {
+  const txt = document.getElementById('fp-descricao')?.value ?? '';
+  try {
+    await prjAtualizar(_fichaProj.id, { descricao: txt });
+    _fichaProj.descricao = txt;
+    const btn = document.querySelector('#fp-descricao ~ button');
+    if (btn) { btn.textContent = '✓ Salvo'; setTimeout(() => btn.textContent = 'Salvar descrição', 1500); }
+  } catch (e) {
+    alert('Erro ao salvar: ' + e.message);
+  }
+}
+
+// ── Fotos gerais do projeto ──
+async function _prjFotosProjetoAdicionar(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  const label = input.parentElement;
+  const textoOriginal = label.childNodes[0].textContent.trim();
+  label.childNodes[0].textContent = ' Enviando...';
+  try {
+    for (const file of files) {
+      const blob = await _prjComprimirFoto(file);
+      await prjUploadFoto(_fichaProj.id, null, blob);
+    }
+    _fichaProj = await prjBuscar(_fichaProj.id);
+    _renderFichaProjeto();
+  } catch (e) {
+    alert('Erro ao enviar foto: ' + e.message);
+    label.childNodes[0].textContent = textoOriginal;
+  }
+}
+
+async function _prjFotoProjetoExcluir(id, caminho) {
+  if (!confirm('Excluir esta foto do projeto?')) return;
+  try {
+    await prjFotoExcluir(id, caminho);
+    if (_fichaProj.projeto_fotos)
+      _fichaProj.projeto_fotos = _fichaProj.projeto_fotos.filter(f => f.id !== id);
+    document.getElementById('pfoto-' + id)?.remove();
   } catch (e) {
     alert('Erro: ' + e.message);
   }

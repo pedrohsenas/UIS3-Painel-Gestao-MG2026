@@ -23,6 +23,7 @@ async function prjBuscar(id) {
   const { data, error } = await sb.from('projetos')
     .select('*, ' +
             'projeto_equipe(perfil_id, perfis(id, nome, papel)), ' +
+            'projeto_fotos!projeto_fotos_projeto_id_fkey(id, caminho_storage, etapa_id), ' +
             'projeto_etapas(*, ' +
               'projeto_checklist(*), ' +
               'projeto_comentarios(*), ' +
@@ -128,14 +129,16 @@ async function prjComentarioExcluir(id) {
 
 // ── Fotos ──
 async function prjUploadFoto(projeto_id, etapa_id, blob) {
+  // etapa_id pode ser null para fotos gerais do projeto
   const sess = await dbSessao();
   const nome = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-  const caminho = `projetos/${projeto_id}/${etapa_id}/${nome}`;
+  const pasta = etapa_id ? `projetos/${projeto_id}/${etapa_id}` : `projetos/${projeto_id}/geral`;
+  const caminho = `${pasta}/${nome}`;
   const { error: ue } = await sb.storage.from('fotos')
     .upload(caminho, blob, { contentType: 'image/jpeg', upsert: false });
   if (ue) throw ue;
   const { error: ie } = await sb.from('projeto_fotos')
-    .insert({ projeto_id, etapa_id, caminho_storage: caminho, enviado_por: sess.user.id });
+    .insert({ projeto_id, etapa_id: etapa_id || null, caminho_storage: caminho, enviado_por: sess.user.id });
   if (ie) throw ie;
   return caminho;
 }
