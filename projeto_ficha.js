@@ -1,10 +1,10 @@
-'use strict';
 // ─── projeto_ficha.js — ficha do projeto (planejamento + execução) ────
 
-let _fichaProj     = null;
-let _fichaAba      = 'plan';  // 'plan' | 'exec'
-let _fichaEtapaId  = null;    // id da etapa aberta no modal
-let _fichaEtapaTipo = 'plan'; // 'plan' | 'exec'
+// Namespace para evitar conflito com outros arquivos
+var _fichaProj      = null;
+var _fichaAba       = 'plan';
+var _fichaEtapaId   = null;
+var _fichaEtapaTipo = 'plan';
 
 // ══════════════════════════════════════════════════════════════════════
 // CARREGAMENTO
@@ -1041,23 +1041,43 @@ function _abrirModalGerenciarEtapas(tipo) {
         <p class="page-sub" style="margin-bottom:12px">Salve cada linha individualmente.</p>
         <div id="ged-lista">
           ${etapas.map(et => `
-            <div class="prj-etapa-row" id="ged-row-${et.id}">
-              <span class="prj-etapa-ord">${et.ordem}</span>
-              <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:2" />
-              ${tipo==='exec' ? `
-                <input type="date" value="${et.data_inicio_prev||''}" id="ged-ini-prev-${et.id}" style="flex:1" title="Início previsto" placeholder="Início prev." />
-                <input type="number" min="1" max="999" value="${et.duracao_prev_dias||''}" id="ged-dur-${et.id}" style="flex:0 0 70px;padding:6px 8px" title="Duração prev. (dias)" placeholder="dias" />
-                <input type="date" value="${et.data_inicio||''}" id="ged-ini-${et.id}" style="flex:1" title="Início real" />
-                <input type="date" value="${et.data_fim||''}" id="ged-fim-${et.id}" style="flex:1" title="Fim real" />
-              ` : `
-                <input type="date" value="${et.prazo||''}" id="ged-prazo-${et.id}" style="flex:1" title="Prazo" />
-              `}
-              <div style="display:flex;align-items:center;gap:4px;flex:0 0 80px">
-                <span style="font-size:11px;color:var(--tx2)">Peso</span>
-                <input type="number" min="1" max="99" value="${et.peso_projeto||1}" id="ged-peso-${et.id}" style="width:48px;padding:6px 8px" />
+            <div id="ged-row-${et.id}" style="background:var(--bg0);border:1px solid var(--line2);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px">
+              <!-- Linha 1: número, nome, peso, ações -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:${tipo==='exec'?'8px':'0'}">
+                <span class="prj-etapa-ord" style="flex-shrink:0">${et.ordem}</span>
+                <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:1;min-width:0" placeholder="Nome da etapa" />
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                  <span style="font-size:11px;color:var(--tx2)">Peso</span>
+                  <input type="number" min="1" max="99" value="${et.peso_projeto||1}" id="ged-peso-${et.id}" style="width:48px;padding:6px 8px" />
+                </div>
+                <button class="btn-mini" onclick="_gedSalvarEtapa('${et.id}','${tipo}')" style="flex-shrink:0">&#128190;</button>
+                ${!et.fixo ? `<button class="btn-mini btn-mini-danger" onclick="_gedExcluirEtapa('${et.id}','${tipo}','${escHtml(et.nome)}')" style="flex-shrink:0">&#x2715;</button>` : '<span style="width:50px"></span>'}
               </div>
-              <button class="btn-mini" onclick="_gedSalvarEtapa('${et.id}','${tipo}')">&#128190;</button>
-              ${!et.fixo ? `<button class="btn-mini btn-mini-danger" onclick="_gedExcluirEtapa('${et.id}','${tipo}','${escHtml(et.nome)}')">&#x2715;</button>` : '<span style="width:50px"></span>'}
+              ${tipo==='exec' ? `
+              <!-- Linha 2: datas (exec) -->
+              <div style="display:grid;grid-template-columns:1fr 80px 1fr 1fr;gap:6px;margin-left:28px">
+                <div>
+                  <div style="font-size:10px;color:var(--tx2);margin-bottom:2px">Início previsto</div>
+                  <input type="date" value="${et.data_inicio_prev||''}" id="ged-ini-prev-${et.id}" style="width:100%;padding:5px 8px;font-size:13px" />
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--tx2);margin-bottom:2px">Duração (d)</div>
+                  <input type="number" min="1" max="999" value="${et.duracao_prev_dias||''}" id="ged-dur-${et.id}" style="width:100%;padding:5px 8px;font-size:13px" placeholder="dias" />
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--tx2);margin-bottom:2px">Início real</div>
+                  <input type="date" value="${et.data_inicio||''}" id="ged-ini-${et.id}" style="width:100%;padding:5px 8px;font-size:13px" />
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--tx2);margin-bottom:2px">Fim real</div>
+                  <input type="date" value="${et.data_fim||''}" id="ged-fim-${et.id}" style="width:100%;padding:5px 8px;font-size:13px" />
+                </div>
+              </div>` : `
+              <!-- Linha 2: prazo (plan) -->
+              <div style="display:flex;align-items:center;gap:8px;margin-left:28px;margin-top:6px">
+                <span style="font-size:11px;color:var(--tx2);flex-shrink:0">Prazo</span>
+                <input type="date" value="${et.prazo||''}" id="ged-prazo-${et.id}" style="max-width:180px;padding:5px 8px;font-size:13px" />
+              </div>`}
             </div>`).join('')}
         </div>
         <button class="btn btn-sec" style="margin-top:12px" onclick="_gedAdicionarEtapa('${tipo}')">+ Adicionar etapa</button>
