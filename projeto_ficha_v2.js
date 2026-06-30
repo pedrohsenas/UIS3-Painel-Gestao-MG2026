@@ -18,6 +18,16 @@ async function abrirFichaProjeto(id, aba) {
     _fichaProj = await prjBuscar(id);
     const sess = await dbSessao();
     _fichaProj._meuAuthId = sess?.user?.id;
+    // Carrega empresas para o select de Empresa responsável
+    if (PERFIL?.papel === 'gestor' && !_empCacheModal) {
+      try { _empCacheModal = await empListar(); } catch(_) { _empCacheModal = []; }
+    } else if (!_empCacheModal) {
+      // terceiros/técnicos: precisam só do nome da empresa atribuída para exibir read-only
+      try { _empCacheModal = await empListar(); } catch(_) { _empCacheModal = []; }
+    }
+    // Limpa rascunho ao abrir novo projeto
+    _rascunhoLimpar();
+    _atualizarBotaoEnviarSolicitacao();
     _renderFicha();
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
@@ -26,8 +36,35 @@ async function abrirFichaProjeto(id, aba) {
 
 function _podeEditar() {
   if (PERFIL?.papel === 'gestor') return true;
+  if (PERFIL?.papel === 'terceiro') return false; // edita pontual via etapa
   const equipe = (_fichaProj?.projeto_equipe || []).map(e => e.perfil_id);
   return equipe.includes(_fichaProj?._meuAuthId);
+}
+
+// Terceiro só pode editar etapas atribuídas à sua empresa
+function _podeEditarEtapa(etapa) {
+  if (!etapa) return false;
+  if (PERFIL?.papel === 'gestor') return true;
+  if (PERFIL?.papel === 'terceiro') return etapa.empresa_id === PERFIL?.empresa_id;
+  const equipe = (_fichaProj?.projeto_equipe || []).map(e => e.perfil_id);
+  return equipe.includes(_fichaProj?._meuAuthId);
+}
+
+// Para terceiros: alterações em campos da etapa não salvam direto, vão para rascunho
+// Estrutura: { etapa_id: { campo: { antes, depois } } }
+var _solRascunho = {};
+
+function _rascunhoAdicionar(etapa_id, campo, antes, depois) {
+  if (!_solRascunho[etapa_id]) _solRascunho[etapa_id] = {};
+  _solRascunho[etapa_id][campo] = { antes, depois };
+}
+
+function _rascunhoLimpar() { _solRascunho = {}; }
+
+function _rascunhoContarItens() {
+  let n = 0;
+  for (const eId in _solRascunho) n += Object.keys(_solRascunho[eId]).length;
+  return n;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -244,9 +281,12 @@ function _renderAbaExec(el) {
 
       <div class="ficha-col">
         <div class="card-sec">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:6px;flex-wrap:wrap">
             <h3 class="card-sec-titulo" style="margin:0">Etapas de Execução</h3>
-            ${podeEditar ? `<button class="btn-mini" onclick="_abrirModalGerenciarEtapas('exec')">Gerenciar</button>` : ''}
+            <div style="display:flex;gap:6px">
+              <button class="btn-mini" onclick="rdoTelaProjeto('${p.id}')">📋 RDOs</button>
+              ${podeEditar ? `<button class="btn-mini" onclick="_abrirModalGerenciarEtapas('exec')">Gerenciar</button>` : ''}
+            </div>
           </div>
           ${etapas.length ? etapas.map(et => _renderCardEtapa(et, 'exec')).join('') :
             '<p class="page-sub">Nenhuma etapa de execução cadastrada.</p>'}
@@ -395,14 +435,22 @@ function _renderCardEtapa(et, tipo) {
     new Date(prazoField + 'T23:59:59') < new Date();
   const perfis = _prjPerfis || [];
   const resp = perfis.find(pf => pf.id === et.responsavel_id);
+  const empresa = (tipo === 'exec' && et.empresa_id)
+    ? (_empCacheModal || []).find(em => em.id === et.empresa_id) : null;
+  // Destaque visual para etapas da empresa do terceiro
+  const minhaEmpresa = PERFIL?.papel === 'terceiro' && et.empresa_id === PERFIL?.empresa_id;
+  const classes = ['prj-etapa-card'];
+  if (atras) classes.push('prj-et-atras');
+  if (minhaEmpresa) classes.push('prj-et-minha');
 
   return `
-    <div class="prj-etapa-card ${atras?'prj-et-atras':''}" onclick="abrirModalEtapa('${et.id}','${tipo}')">
+    <div class="${classes.join(' ')}" onclick="abrirModalEtapa('${et.id}','${tipo}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
           <span class="prj-et-nome">${escHtml(et.nome)}</span>
           ${et.fixo?'<span style="font-size:10px;color:var(--tx2);margin-left:6px">marco final</span>':''}
           ${atras?'<span class="badge-atrasada" style="margin-left:6px">Atrasada</span>':''}
+          ${empresa ? `<span class="badge-empresa">🏢 ${escHtml(empresa.nome)}</span>` : ''}
         </div>
         <span class="badge-etapa ${et.status}">${_prjNomeStatus(et.status)}</span>
       </div>
@@ -425,6 +473,18 @@ function _renderCardEtapa(et, tipo) {
 // MODAL DE ETAPA (planejamento e execução)
 // ══════════════════════════════════════════════════════════════════════
 async function abrirModalEtapa(etapaId, tipo) {
+  // Terceiro só abre etapas atribuídas à sua empresa (no exec)
+  if (PERFIL?.papel === 'terceiro') {
+    if (tipo !== 'exec') {
+      _mostrarFeedback('Etapas de planejamento são apenas para consulta');
+      return;
+    }
+    const etapa = (_fichaProj?.projeto_exec_etapas || []).find(e => e.id === etapaId);
+    if (!etapa || etapa.empresa_id !== PERFIL.empresa_id) {
+      _mostrarFeedback('Esta etapa não é da sua empresa');
+      return;
+    }
+  }
   _fichaEtapaId   = etapaId;
   _fichaEtapaTipo = tipo || 'plan';
   await _renderModalEtapa();
@@ -443,8 +503,17 @@ async function _renderModalEtapa() {
   const tipo = _fichaEtapaTipo;
   const p = _fichaProj;
   const gestor = PERFIL?.papel === 'gestor';
-  const podeEditar = _podeEditar();
+  const terceiro = PERFIL?.papel === 'terceiro';
+  // Terceiro: pode editar apenas se a etapa for da sua empresa
+  const podeEditar = terceiro ? _podeEditarEtapa(etapa) : _podeEditar();
   const perfis = _prjPerfis || [];
+  const empresas = _empCacheModal || [];
+
+  // Pega valor do rascunho se houver (terceiro), senão o valor real
+  const valOu = (campo) => {
+    if (terceiro && _solRascunho[etapa.id]?.[campo]) return _solRascunho[etapa.id][campo].depois;
+    return etapa[campo];
+  };
 
   const checkKey   = tipo === 'exec' ? 'projeto_exec_checklist'  : 'projeto_checklist';
   const comentKey  = tipo === 'exec' ? 'projeto_exec_comentarios': 'projeto_comentarios';
@@ -483,33 +552,40 @@ async function _renderModalEtapa() {
             <div style="font-size:11px;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Previsto</div>
             <div class="row2">
               <div class="field"><label>Início previsto</label>
-                <input id="met-inicio-prev" type="date" value="${etapa.data_inicio_prev||''}" ${podeEditar?'':'disabled'} /></div>
+                <input id="met-inicio-prev" type="date" value="${valOu('data_inicio_prev')||''}" ${podeEditar?'':'disabled'} /></div>
               <div class="field"><label>Duração prevista (dias)</label>
-                <input id="met-dur-prev" type="number" min="1" max="999" value="${etapa.duracao_prev_dias||''}" placeholder="ex: 5" ${podeEditar?'':'disabled'} /></div>
+                <input id="met-dur-prev" type="number" min="1" max="999" value="${valOu('duracao_prev_dias')||''}" placeholder="ex: 5" ${podeEditar?'':'disabled'} /></div>
             </div>
             ${etapa.data_inicio_prev && etapa.duracao_prev_dias ? `<p class="page-sub">Término previsto: ${new Date(new Date(etapa.data_inicio_prev+'T00:00:00').getTime()+(etapa.duracao_prev_dias)*86400000).toLocaleDateString('pt-BR')}</p>` : ''}
           </div>
           <div style="font-size:11px;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Realizado</div>
           <div class="row2" style="margin-bottom:10px">
             <div class="field"><label>Data início real</label>
-              <input id="met-inicio" type="date" value="${etapa.data_inicio||''}" ${podeEditar?'':'disabled'} /></div>
+              <input id="met-inicio" type="date" value="${valOu('data_inicio')||''}" ${podeEditar?'':'disabled'} /></div>
             <div class="field"><label>Data fim real</label>
-              <input id="met-fim" type="date" value="${etapa.data_fim||''}" ${podeEditar?'':'disabled'} /></div>
+              <input id="met-fim" type="date" value="${valOu('data_fim')||''}" ${podeEditar?'':'disabled'} /></div>
           </div>` : `
           <div class="field" style="max-width:200px;margin-bottom:10px"><label>Prazo</label>
-            <input id="met-prazo" type="date" value="${etapa.prazo||''}" ${gestor?'':'disabled'} /></div>`}
+            <input id="met-prazo" type="date" value="${valOu('prazo')||''}" ${gestor?'':'disabled'} /></div>`}
+          ${tipo === 'exec' ? `
+          <div class="field"><label>Empresa responsável</label>
+            ${gestor ? `<select id="met-empresa">
+              <option value="">— interna —</option>
+              ${empresas.map(em => `<option value="${em.id}"${etapa.empresa_id===em.id?' selected':''}>${escHtml(em.nome)}</option>`).join('')}
+            </select>` : `<input type="text" value="${escHtml(empresas.find(em=>em.id===etapa.empresa_id)?.nome||'Equipe interna')}" disabled />`}
+          </div>` : ''}
           <div class="row2">
             <div class="field"><label>Status</label>
               ${podeEditar ? `<select id="met-status">
-                <option value="pendente"${etapa.status==='pendente'?' selected':''}>Pendente</option>
-                <option value="em_andamento"${etapa.status==='em_andamento'?' selected':''}>Em andamento</option>
-                <option value="concluida"${etapa.status==='concluida'?' selected':''}>Concluída</option>
+                <option value="pendente"${valOu('status')==='pendente'?' selected':''}>Pendente</option>
+                <option value="em_andamento"${valOu('status')==='em_andamento'?' selected':''}>Em andamento</option>
+                <option value="concluida"${valOu('status')==='concluida'?' selected':''}>Concluída</option>
               </select>` : `<input type="text" value="${_prjNomeStatus(etapa.status)}" disabled />`}
             </div>
             <div class="field"><label>Responsável</label>
-              ${gestor ? `<select id="met-resp">
+              ${(gestor || (terceiro && podeEditar)) ? `<select id="met-resp">
                 <option value="">— selecione —</option>
-                ${perfis.map(pf=>`<option value="${pf.id}"${etapa.responsavel_id===pf.id?' selected':''}>${escHtml(pf.nome)}</option>`).join('')}
+                ${perfis.map(pf=>`<option value="${pf.id}"${valOu('responsavel_id')===pf.id?' selected':''}>${escHtml(pf.nome)}</option>`).join('')}
               </select>` : `<input type="text" value="${escHtml(perfis.find(pf=>pf.id===etapa.responsavel_id)?.nome||'—')}" disabled />`}
             </div>
           </div>
@@ -632,12 +708,171 @@ async function _verificarConclusaoProjeto() {
   }
 }
 
+// ── Terceiro: acumula alterações de campos da etapa no rascunho de solicitação ──
+function _etapaSalvarParaSolicitacao(etapa, isExec) {
+  // Lê valores atuais dos inputs e compara com os da etapa para detectar mudanças
+  const campos = {};
+  if (isExec) {
+    campos.status            = document.getElementById('met-status')?.value || etapa.status;
+    campos.empresa_id        = document.getElementById('met-empresa')?.value || null;
+    campos.data_inicio_prev  = document.getElementById('met-inicio-prev')?.value || null;
+    campos.duracao_prev_dias = +(document.getElementById('met-dur-prev')?.value) || null;
+    campos.data_inicio       = document.getElementById('met-inicio')?.value || null;
+    campos.data_fim          = document.getElementById('met-fim')?.value || null;
+    campos.responsavel_id    = document.getElementById('met-resp')?.value || null;
+  } else {
+    campos.status         = document.getElementById('met-status')?.value || etapa.status;
+    campos.prazo          = document.getElementById('met-prazo')?.value || null;
+    campos.responsavel_id = document.getElementById('met-resp')?.value || null;
+  }
+
+  let mudou = 0;
+  for (const [k, v] of Object.entries(campos)) {
+    const atual = etapa[k] == null ? null : etapa[k];
+    const novo  = v == null ? null : v;
+    if (String(atual || '') !== String(novo || '')) {
+      _rascunhoAdicionar(etapa.id, k, atual, novo);
+      mudou++;
+    }
+  }
+
+  if (mudou === 0) {
+    _mostrarFeedback('Nenhuma alteração detectada');
+    return;
+  }
+
+  _mostrarFeedback(`${mudou} alteração(ões) adicionadas ao rascunho`);
+  _atualizarBotaoEnviarSolicitacao();
+  // Re-renderiza modal pra refletir os campos com indicador de pendente
+  _renderModalEtapa();
+}
+
+// Botão flutuante "Enviar solicitação" — aparece quando há rascunho
+function _atualizarBotaoEnviarSolicitacao() {
+  let btn = document.getElementById('btn-enviar-sol');
+  const n = _rascunhoContarItens();
+  if (n === 0) {
+    if (btn) btn.remove();
+    return;
+  }
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'btn-enviar-sol';
+    btn.className = 'btn-enviar-sol';
+    btn.onclick = _abrirRevisaoSolicitacao;
+    document.body.appendChild(btn);
+  }
+  btn.innerHTML = `📨 Enviar solicitação <span class="btn-enviar-sol-n">${n}</span>`;
+}
+
+function _abrirRevisaoSolicitacao() {
+  const itens = [];
+  for (const eId in _solRascunho) {
+    for (const campo in _solRascunho[eId]) {
+      itens.push({
+        exec_etapa_id: eId,
+        campo,
+        valor_antes: _solRascunho[eId][campo].antes,
+        valor_depois: _solRascunho[eId][campo].depois
+      });
+    }
+  }
+  const etapas = _fichaProj.projeto_exec_etapas || _fichaProj.projeto_etapas || [];
+  const nomeEtapa = id => etapas.find(e => e.id === id)?.nome || '—';
+
+  // Modal de revisão
+  document.getElementById('prj-modal-root').innerHTML = `
+    <div class="prj-overlay" onclick="if(event.target===this)_fecharRevisao()">
+      <div class="prj-modal" style="max-width:680px">
+        <div class="prj-modal-head">
+          <h3>Revisar alterações</h3>
+          <button class="btn-mini" onclick="_fecharRevisao()">&#x2715;</button>
+        </div>
+        <p class="page-sub" style="margin-bottom:14px">Estas alterações serão enviadas para aprovação do gestor.</p>
+        <div style="max-height:50vh;overflow-y:auto">
+        ${itens.map(it => `
+          <div style="border:1px solid var(--line2);border-radius:var(--r2);padding:8px 12px;margin-bottom:6px">
+            <div style="font-size:11px;color:var(--tx2)">${escHtml(nomeEtapa(it.exec_etapa_id))}</div>
+            <div style="display:flex;gap:8px;font-size:13px;margin-top:3px;flex-wrap:wrap">
+              <strong>${_solNomeCampoLocal(it.campo)}:</strong>
+              <span style="color:var(--tx2)">${escHtml(_solFmtValorLocal(it.campo, it.valor_antes)) || '—'}</span>
+              <span>→</span>
+              <span style="color:var(--accent);font-weight:600">${escHtml(_solFmtValorLocal(it.campo, it.valor_depois)) || '—'}</span>
+            </div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-sec" onclick="_fecharRevisao()">Continuar editando</button>
+          <button class="btn" onclick="_enviarSolicitacao()">Enviar solicitação</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _solNomeCampoLocal(c) {
+  const MAP = {
+    status: 'Status', data_inicio: 'Data início real', data_fim: 'Data fim real',
+    data_inicio_prev: 'Início previsto', data_fim_prev: 'Fim previsto',
+    duracao_prev_dias: 'Duração prev. (d)', responsavel_id: 'Responsável',
+    prazo: 'Prazo', peso_projeto: 'Peso', nome: 'Nome'
+  };
+  return MAP[c] || c;
+}
+
+function _solFmtValorLocal(campo, valor) {
+  if (valor == null || valor === '') return '';
+  if (['data_inicio','data_fim','data_inicio_prev','data_fim_prev','prazo'].includes(campo))
+    return new Date(valor + 'T12:00:00').toLocaleDateString('pt-BR');
+  if (campo === 'status')
+    return {pendente:'Pendente',em_andamento:'Em andamento',concluida:'Concluída'}[valor] || valor;
+  if (campo === 'responsavel_id')
+    return (_prjPerfis || []).find(p => p.id === valor)?.nome || valor;
+  return String(valor);
+}
+
+function _fecharRevisao() {
+  document.getElementById('prj-modal-root').innerHTML = '';
+}
+
+async function _enviarSolicitacao() {
+  const itens = [];
+  for (const eId in _solRascunho) {
+    for (const campo in _solRascunho[eId]) {
+      itens.push({
+        exec_etapa_id: eId,
+        campo,
+        valor_antes: _solRascunho[eId][campo].antes,
+        valor_depois: _solRascunho[eId][campo].depois
+      });
+    }
+  }
+  if (!itens.length) return;
+  const btn = document.querySelector('.prj-modal .btn:last-child');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await solCriar(_fichaProj.id, PERFIL.empresa_id, itens);
+    _rascunhoLimpar();
+    _fecharRevisao();
+    _atualizarBotaoEnviarSolicitacao();
+    _mostrarFeedback('Solicitação enviada para aprovação');
+  } catch (e) {
+    alert('Erro: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Enviar solicitação';
+  }
+}
+
 // ── Salvar controle da etapa — regras completas status ↔ checklist ↔ datas ──
 async function _etapaSalvar() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
   const tipo    = _fichaEtapaTipo;
   const isExec  = tipo === 'exec';
+
+  // ── Terceiro: alterações em campos vão para rascunho de solicitação ──
+  if (PERFIL?.papel === 'terceiro') {
+    return _etapaSalvarParaSolicitacao(etapa, isExec);
+  }
+
   const statusEl = document.getElementById('met-status');
   let   novoStatus = statusEl?.value || etapa.status;
   const resp   = document.getElementById('met-resp')?.value || null;
@@ -690,6 +925,7 @@ async function _etapaSalvar() {
 
   // ── Campos de datas ──
   if (isExec) {
+    campos.empresa_id        = document.getElementById('met-empresa')?.value || null;
     campos.data_inicio_prev  = document.getElementById('met-inicio-prev')?.value || null;
     campos.duracao_prev_dias = +(document.getElementById('met-dur-prev')?.value) || null;
     if (campos.data_inicio_prev && campos.duracao_prev_dias) {

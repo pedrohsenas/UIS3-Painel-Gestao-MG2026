@@ -14,7 +14,16 @@ async function telaProjetos() {
   window._ajudaChave = 'projetos';
   setConteudo('<div class="loading"><div class="spinner"></div> Carregando projetos...</div>');
   try {
-    const [projetos] = await Promise.all([prjListar(), _prjCarregarPerfis()]);
+    let projetos;
+    if (PERFIL?.papel === 'terceiro') {
+      if (!PERFIL.empresa_id) {
+        setConteudo('<div class="result-card erro"><p>Sua conta não está vinculada a uma empresa.</p></div>');
+        return;
+      }
+      [projetos] = await Promise.all([prjListarParaTerceiro(PERFIL.empresa_id), _prjCarregarPerfis()]);
+    } else {
+      [projetos] = await Promise.all([prjListar(), _prjCarregarPerfis()]);
+    }
     renderListaProjetos(projetos);
   } catch (e) {
     setConteudo(`<div class="result-card erro"><p>Erro: ${e.message}</p></div>`);
