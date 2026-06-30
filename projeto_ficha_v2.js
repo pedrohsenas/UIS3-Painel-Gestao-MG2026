@@ -5,6 +5,7 @@ let _fichaProj      = null;
 let _fichaAba       = 'plan';
 let _fichaEtapaId   = null;
 let _fichaEtapaTipo = 'plan';
+let _empCacheModal  = null;  // cache de empresas para o modal de etapa
 
 // ══════════════════════════════════════════════════════════════════════
 // CARREGAMENTO
