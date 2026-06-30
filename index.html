@@ -460,42 +460,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .ac-dias-corre { background: #e5e7eb; color: var(--tx1); }
 .ac-dias-ok    { color: #16a34a; font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
 .ac-dias-sem   { color: var(--tx2); font-size: 12px; font-style: italic; }
-
-.ac-filtros {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-  align-items: end;
-}
-.ac-filtros .field { margin: 0; }
-
-.ac-contadores { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.ac-cont { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid; }
-.ac-c-atras { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-bd); }
-.ac-c-and   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-.ac-c-pend  { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-bd); }
-.ac-c-conc  { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
-
-/* cores das linhas por situação (borda-esquerda + fundo suave) */
-.ac-tabela tr, .ac-tabela tbody tr { transition: background .12s; }
-.ac-l-atras { background: var(--crit-bg) !important; box-shadow: inset 4px 0 0 var(--crit); }
-.ac-l-atras:hover { background: #fde2e2 !important; }
-.ac-l-pend  { background: var(--warn-bg) !important; box-shadow: inset 4px 0 0 var(--warn); }
-.ac-l-pend:hover { background: #fdf2d6 !important; }
-.ac-l-and   { background: #eff6ff !important; box-shadow: inset 4px 0 0 #2563eb; }
-.ac-l-and:hover { background: #dbeafe !important; }
-.ac-l-conc  { background: #f0fdf6 !important; box-shadow: inset 4px 0 0 #16a34a; }
-.ac-l-conc:hover { background: #dcfce7 !important; }
-.ac-l-conc .td-mono { color: #15803d; }
-
-/* célula de prazo/dias */
-.ac-dias { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
-.ac-dias-atras { background: var(--crit); color: #fff; }
-.ac-dias-hoje  { background: var(--warn); color: #fff; }
-.ac-dias-corre { background: #e5e7eb; color: var(--tx1); }
-.ac-dias-ok    { color: #16a34a; font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
-.ac-dias-sem   { color: var(--tx2); font-size: 12px; font-style: italic; }
   
 /* ── Mobile ── */
 @media (max-width: 760px) {
@@ -658,6 +622,56 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .conteudo { padding: 14px 10px; }
 }
 
+
+/* ════════════════════════════════════════════════════════════════════
+   TERCEIROS, EMPRESAS, SOLICITAÇÕES E RDO
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Badge de empresa nos cards de etapa */
+.badge-empresa {
+  display: inline-block; font-size: 11px; padding: 2px 8px; margin-left: 6px;
+  background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe;
+  border-radius: 10px; font-weight: 500;
+}
+
+/* Card de etapa que pertence à empresa do terceiro logado */
+.prj-etapa-card.prj-et-minha {
+  border-color: var(--accent); background: var(--accent-bg);
+  border-left-width: 4px;
+}
+.prj-etapa-card.prj-et-minha .prj-et-nome { color: var(--accent); }
+
+/* Badge no menu lateral (contador de pendentes) */
+.nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  background: var(--crit); color: #fff; font-size: 11px; font-weight: 700;
+  border-radius: 10px; margin-left: auto; font-family: var(--mono);
+}
+
+/* Botão flutuante "Enviar solicitação" */
+.btn-enviar-sol {
+  position: fixed; right: 20px; bottom: 20px; z-index: 80;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; border: none;
+  padding: 13px 20px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(26,95,212,0.35);
+  transition: transform .12s, box-shadow .12s;
+}
+.btn-enviar-sol:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(26,95,212,0.45);
+}
+.btn-enviar-sol-n {
+  background: rgba(255,255,255,0.25); padding: 2px 8px;
+  border-radius: 10px; font-family: var(--mono); font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .btn-enviar-sol { left: 10px; right: 10px; bottom: 84px; justify-content: center; }
+}
+
 </style>
 </head>
 <body>
@@ -702,6 +716,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 <script src="proj_dashboard.js"></script>
 <script src="proj_dashboard_exec.js"></script>
 <script src="proj_acomp_exec.js"></script>
+<script src="terceiros_db.js"></script>
+<script src="empresas.js"></script>
+<script src="solicitacoes.js"></script>
+<script src="rdo.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
