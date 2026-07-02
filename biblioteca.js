@@ -90,7 +90,23 @@ async function _bibCarregarImportacoes() {
   }
 }
 
-// Ações V&I (as de máquinas já existem em biblioteca.js original: acaoArquivar/acaoExcluir)
+// Ações Máquinas (do biblioteca.js original)
+async function acaoArquivar(id, arquivar) {
+  try {
+    await dbArquivarImportacao(id, arquivar);
+    telaBiblioteca();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function acaoExcluir(id, nome) {
+  if (!confirm(`Excluir a importação "${nome}"?\n\nATENÇÃO: todas as máquinas, etapas e fotos vinculadas a ela serão excluídas do banco. Esta ação não pode ser desfeita.`)) return;
+  try {
+    await dbExcluirImportacao(id);
+    telaBiblioteca();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+// Ações V&I
 async function _bibArquivarVI(id, arquivar) {
   try { await viArquivarImportacao(id, arquivar); telaBiblioteca(); }
   catch (e) { alert('Erro: ' + e.message); }
