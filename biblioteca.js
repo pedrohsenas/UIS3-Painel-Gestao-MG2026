@@ -147,19 +147,67 @@ async function _bibCarregarDuplicatas() {
 }
 
 // Detectores ------------------------------------------------------------
+// Campos comparados para calcular "diferenças" entre cadastros de mesma TAG
+const _BIB_CAMPOS_MAQ = ['tipo','area','localizacao','potencia','unidade_pot','fabricante','rolamento_dianteiro','rolamento_traseiro','ex'];
+const _BIB_CAMPOS_VI  = ['dominio','tipo','area','localizacao','fabricante','modelo'];
+
 async function _bibDetectarTagsDupMaq() {
   const { data, error } = await sb.from('maquinas')
-    .select('id, tag, area, status, criado_em');
+    .select('id, tag, tipo, area, localizacao, potencia, unidade_pot, fabricante, ' +
+            'rolamento_dianteiro, rolamento_traseiro, ex, status, criado_em, importacao_id, ' +
+            'importacoes(nome_zip), fotos!fotos_maquina_id_fkey(id)');
   if (error) throw error;
-  return _bibAgruparPorTag(data || [], 'tag');
+  const norm = (data || []).map(m => ({
+    ...m,
+    _zip: m.importacoes?.nome_zip || '—',
+    _qtdFotos: (m.fotos || []).length
+  }));
+  const grupos = _bibAgruparPorTag(norm, 'tag');
+  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_MAQ));
+  return grupos;
 }
 
 async function _bibDetectarTagsDupVI() {
   if (typeof sb === 'undefined') return [];
   const { data, error } = await sb.from('vi_equipamentos')
-    .select('id, tag, dominio, area, status, criado_em');
+    .select('id, tag, dominio, tipo, area, localizacao, fabricante, modelo, status, criado_em, ' +
+            'importacao_id, vi_importacoes(nome_zip), vi_fotos!equipamento_id(id)');
   if (error) return [];
-  return _bibAgruparPorTag(data || [], 'tag');
+  const norm = (data || []).map(m => ({
+    ...m,
+    _zip: m.vi_importacoes?.nome_zip || '—',
+    _qtdFotos: (m.vi_fotos || []).length
+  }));
+  const grupos = _bibAgruparPorTag(norm, 'tag');
+  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_VI));
+  return grupos;
+}
+
+// Compara os cadastros do grupo par-a-par e anota quantas/quais diferenças há.
+// 0 diferenças = duplicata idêntica (provável importação dupla)
+// >0 diferenças = cadastros distintos com mesma TAG (ex: SEMTAG)
+function _bibCalcularDiferencas(grupo, campos) {
+  const ref = grupo.ocorrencias[0];
+  const difs = new Set();
+  for (const o of grupo.ocorrencias.slice(1)) {
+    for (const campo of campos) {
+      const a = ref[campo] == null ? '' : String(ref[campo]).trim();
+      const b = o[campo]   == null ? '' : String(o[campo]).trim();
+      if (a !== b) difs.add(_bibNomeCampo(campo));
+    }
+    if ((ref._qtdFotos || 0) !== (o._qtdFotos || 0)) difs.add('fotos');
+  }
+  grupo.diferencas = [...difs];
+}
+
+function _bibNomeCampo(c) {
+  const MAP = {
+    tipo:'tipo', area:'setor', localizacao:'localização', potencia:'potência',
+    unidade_pot:'unid. potência', fabricante:'fabricante',
+    rolamento_dianteiro:'rol. dianteiro', rolamento_traseiro:'rol. traseiro',
+    ex:'EX', dominio:'domínio', modelo:'modelo'
+  };
+  return MAP[c] || c;
 }
 
 async function _bibDetectarZipsDupMaq() {
@@ -200,20 +248,36 @@ function _bibRenderGrupoTag(titulo, grupos, tipo) {
     <div class="card-sec" style="margin-bottom:14px">
       <h3 class="card-sec-titulo">${titulo} · ${grupos.length}</h3>
       <div style="display:flex;flex-direction:column;gap:8px">
-        ${grupos.map(g => `
-          <div style="border:1px solid var(--crit-bd);border-radius:var(--r2);padding:10px 12px;background:var(--crit-bg)">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+        ${grupos.map(g => {
+          const nDif = (g.diferencas || []).length;
+          const provavelImportDupla = nDif === 0;
+          const corBorda = provavelImportDupla ? 'var(--crit-bd)' : 'var(--warn-bd)';
+          const corFundo = provavelImportDupla ? 'var(--crit-bg)' : 'var(--warn-bg)';
+          return `
+          <div style="border:1px solid ${corBorda};border-radius:var(--r2);padding:10px 12px;background:${corFundo}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:6px">
               <strong style="font-family:var(--mono);font-size:14px">${escHtml(g.chave)}</strong>
-              <span style="font-size:12px;color:var(--tx2)">${g.ocorrencias.length} cadastros</span>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                ${provavelImportDupla
+                  ? '<span class="badge crit-a" style="font-size:11px">⚠ Idênticos — provável importação dupla</span>'
+                  : `<span class="badge crit-b" style="font-size:11px">${nDif} diferença(s) — possível TAG repetida legítima</span>`}
+                <span style="font-size:12px;color:var(--tx2)">${g.ocorrencias.length} cadastros</span>
+              </div>
             </div>
-            <table style="width:100%;font-size:12px;border-collapse:collapse">
+            ${nDif > 0 ? `<div style="font-size:11px;color:var(--tx2);margin-bottom:6px">
+              Campos divergentes: ${g.diferencas.map(d => `<span class="prj-check-peso" style="margin-right:3px">${escHtml(d)}</span>`).join('')}
+            </div>` : ''}
+            <div class="tabela-wrap" style="box-shadow:none;border:none;background:transparent">
+            <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:640px">
               <thead><tr style="color:var(--tx2)">
-                <th style="text-align:left;padding:3px 6px">TAG cadastrada</th>
+                <th style="text-align:left;padding:3px 6px">TAG</th>
                 ${tipo==='vi' ? '<th style="text-align:left;padding:3px 6px">Domínio</th>' : ''}
-                <th style="text-align:left;padding:3px 6px">Área</th>
+                <th style="text-align:left;padding:3px 6px">Setor</th>
+                <th style="text-align:left;padding:3px 6px">ZIP de origem</th>
+                <th style="text-align:center;padding:3px 6px">Fotos</th>
                 <th style="text-align:left;padding:3px 6px">Status</th>
                 <th style="text-align:left;padding:3px 6px">Criado</th>
-                <th style="width:100px"></th>
+                <th style="width:110px"></th>
               </tr></thead>
               <tbody>
                 ${g.ocorrencias.map(o => `
@@ -221,16 +285,20 @@ function _bibRenderGrupoTag(titulo, grupos, tipo) {
                     <td class="td-mono" style="padding:5px 6px">${escHtml(o.tag)}</td>
                     ${tipo==='vi' ? `<td style="padding:5px 6px">${escHtml(o.dominio || '—')}</td>` : ''}
                     <td style="padding:5px 6px">${escHtml(o.area || '—')}</td>
+                    <td class="td-mono" style="padding:5px 6px;font-size:11px">${escHtml(o._zip)}</td>
+                    <td class="td-mono" style="padding:5px 6px;text-align:center">${o._qtdFotos ?? '—'}</td>
                     <td style="padding:5px 6px"><span class="badge-status ${o.status}">${o.status}</span></td>
                     <td style="padding:5px 6px">${new Date(o.criado_em).toLocaleDateString('pt-BR')}</td>
-                    <td style="padding:5px 6px;text-align:right">
+                    <td style="padding:5px 6px;text-align:right;white-space:nowrap">
                       <button class="btn-mini" onclick="${tipo==='vi'?'viAbrirFicha':'abrirFicha'}('${o.id}')">Abrir</button>
                       ${gestor ? `<button class="btn-mini btn-mini-danger" onclick="_bibExcluirItem('${o.id}','${tipo}','${escHtml(o.tag)}')">Excluir</button>` : ''}
                     </td>
                   </tr>`).join('')}
               </tbody>
             </table>
-          </div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
 }
