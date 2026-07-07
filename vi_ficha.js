@@ -5,7 +5,7 @@ const VI_AREAS = [
   'ARMAZÉM 01','ARMAZÉM 02','ARMAZÉM DE CAVACO',
   'CALDEIRA ICAVI','CALDEIRA MEPPAN',
   'CASA DE MÁQUINAS 01','CASA DE MÁQUINAS 02',
-  'ETE','EXPEDIÇÃO DE FARELO','EXTRAÇÃO','PELETIZAÇÃO','PREPARAÇÃO'
+  'ETE','EXPEDIÇÃO DE FARELO','EXPEDIÇÃO DE ÓLEO','EXTRAÇÃO','PELETIZAÇÃO','PREPARAÇÃO'
 ];
 const VI_TIPOS_INST = [
   'Transmissor de pressão','Transmissor de temperatura','Transmissor de nível',
