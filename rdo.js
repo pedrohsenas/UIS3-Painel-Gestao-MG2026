@@ -120,6 +120,9 @@ function _rdoAbrirForm(projeto_id, rdoExistente) {
 }
 
 function _rdoFechar() {
+  const ativ = document.getElementById('rdo-ativ')?.value?.trim();
+  const ocor = document.getElementById('rdo-ocor')?.value?.trim();
+  if ((ativ || ocor) && !confirm('Fechar sem salvar o RDO?')) return;
   document.getElementById('rdo-modal-root').innerHTML = '';
 }
 
@@ -136,6 +139,7 @@ async function _rdoSalvar(projeto_id, id) {
     observacoes:           document.getElementById('rdo-obs').value.trim() || null
   };
   if (!campos.data) { alert('Informe a data.'); return; }
+  if (typeof DataValida !== 'undefined' && !DataValida.checar('rdo-data', 'Data do RDO')) return;
   try {
     if (id) await rdoAtualizar(id, campos);
     else    await rdoCriar(campos);

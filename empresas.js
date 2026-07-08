@@ -138,6 +138,10 @@ async function _empAbrirDetalhe(id) {
 }
 
 function _empFechar() {
+  // Se há texto digitado no nome e não é edição carregada, confirma
+  const nome = document.getElementById('emp-nome')?.value?.trim();
+  const ehNovo = !document.querySelector('#emp-modal-root .card-sec'); // sem card de usuários = modal de criação
+  if (nome && ehNovo && !confirm('Fechar sem salvar a empresa?')) return;
   document.getElementById('emp-modal-root').innerHTML = '';
 }
 

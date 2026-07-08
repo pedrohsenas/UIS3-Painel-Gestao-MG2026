@@ -164,15 +164,46 @@ async function prjAcaoExcluir(id, titulo) {
 // MODAL NOVO PROJETO
 // ══════════════════════════════════════════════════════════════════════
 let _novoEtapas = []; // { nome, prazo, peso_projeto }
+// Rascunho em memória: preserva o que foi digitado se o modal fechar sem salvar.
+// Perde-se apenas ao recarregar a página (comportamento desejado) ou ao Cancelar.
+let _novoRascunho = null;
 
 function abrirModalNovoProjeto() {
-  // Etapas padrão iniciais: usuário pode editar/adicionar; "Conclusão" é sempre a última
-  _novoEtapas = [
-    { nome: 'Planejamento', prazo: '', peso_projeto: 1 },
-    { nome: 'Execução',     prazo: '', peso_projeto: 3 },
-    { nome: 'Conclusão',    prazo: '', peso_projeto: 1, fixo: true },
-  ];
+  if (_novoRascunho) {
+    // Restaura rascunho anterior
+    _novoEtapas = _novoRascunho.etapas;
+  } else {
+    _novoEtapas = [
+      { nome: 'Planejamento', prazo: '', peso_projeto: 1 },
+      { nome: 'Execução',     prazo: '', peso_projeto: 3 },
+      { nome: 'Conclusão',    prazo: '', peso_projeto: 1, fixo: true },
+    ];
+  }
   _renderModalNovo();
+  // Repõe campos de texto do rascunho após o render
+  if (_novoRascunho) {
+    const r = _novoRascunho;
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    set('np-titulo', r.titulo);
+    set('np-setor',  r.setor);
+    set('np-prio',   r.prio);
+    (r.equipe || []).forEach(id => {
+      const cb = document.querySelector(`#np-equipe input[value="${id}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+}
+
+// Captura o estado atual dos campos para o rascunho
+function _novoCapturarRascunho() {
+  const get = id => document.getElementById(id)?.value ?? '';
+  _novoRascunho = {
+    titulo: get('np-titulo'),
+    setor:  get('np-setor'),
+    prio:   get('np-prio'),
+    equipe: [...document.querySelectorAll('#np-equipe input:checked')].map(el => el.value),
+    etapas: _novoEtapas
+  };
 }
 
 function _renderModalNovo() {
@@ -230,7 +261,7 @@ function _renderModalNovo() {
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
-          <button class="btn btn-sec" onclick="fecharModalNovo()">Cancelar</button>
+          <button class="btn btn-sec" onclick="fecharModalNovo(true)">Cancelar</button>
           <button class="btn" onclick="prjAcaoCriar()">Criar projeto</button>
         </div>
       </div>
@@ -276,13 +307,24 @@ function _novoRemoverEtapa(i) {
   _renderNovoEtapas();
 }
 
-function fecharModalNovo() {
+function fecharModalNovo(descartar) {
+  if (descartar) {
+    // Cancelar explícito: descarta rascunho
+    if (_novoRascunho || document.getElementById('np-titulo')?.value) {
+      if (!confirm('Descartar os dados preenchidos?')) return;
+    }
+    _novoRascunho = null;
+  } else {
+    // Clique fora ou X: preserva rascunho para retomar depois
+    _novoCapturarRascunho();
+  }
   document.getElementById('prj-modal-root').innerHTML = '';
 }
 
 async function prjAcaoCriar() {
   const titulo = document.getElementById('np-titulo').value.trim();
   if (!titulo) { alert('Informe o título do projeto.'); return; }
+  if (typeof DataValida !== 'undefined' && !DataValida.checarTodas(document.querySelector('.prj-modal'))) return;
 
   // Valida etapas
   for (const et of _novoEtapas) {
@@ -323,7 +365,8 @@ async function prjAcaoCriar() {
     // Equipe
     if (equipeIds.length) await prjEquipeDefinir(proj.id, equipeIds);
 
-    fecharModalNovo();
+    _novoRascunho = null;
+    document.getElementById('prj-modal-root').innerHTML = '';
     abrirFichaProjeto(proj.id);
   } catch (e) {
     alert('Erro: ' + e.message);

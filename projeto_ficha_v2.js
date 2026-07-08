@@ -866,6 +866,8 @@ async function _enviarSolicitacao() {
 async function _etapaSalvar() {
   const etapa = _getEtapaAtual();
   if (!etapa) return;
+  // Valida todas as datas do modal antes de qualquer processamento
+  if (typeof DataValida !== 'undefined' && !DataValida.checarTodas(document.querySelector('.prj-etapa-modal'))) return;
   const tipo    = _fichaEtapaTipo;
   const isExec  = tipo === 'exec';
 
@@ -1277,11 +1279,11 @@ function _abrirModalGerenciarEtapas(tipo) {
         </div>
         <p class="page-sub" style="margin-bottom:12px">Salve cada linha individualmente.</p>
         <div id="ged-lista">
-          ${etapas.map(et => `
+          ${etapas.map((et, _idx) => `
             <div id="ged-row-${et.id}" style="background:var(--bg0);border:1px solid var(--line2);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px">
               <!-- Linha 1: número, nome, peso, ações -->
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:${tipo==='exec'?'8px':'0'}">
-                <span class="prj-etapa-ord" style="flex-shrink:0">${et.ordem}</span>
+                <span class="prj-etapa-ord" style="flex-shrink:0">${_idx + 1}</span>
                 <input type="text" value="${escHtml(et.nome)}" id="ged-nome-${et.id}" style="flex:1;min-width:0" placeholder="Nome da etapa" />
                 <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
                   <span style="font-size:11px;color:var(--tx2)">Peso</span>
@@ -1334,6 +1336,7 @@ async function _gedSalvarEtapa(id, tipo) {
   const nome  = document.getElementById('ged-nome-'+id)?.value.trim();
   const peso  = +(document.getElementById('ged-peso-'+id)?.value)||1;
   if (!nome) { alert('Informe o nome.'); return; }
+  if (typeof DataValida !== 'undefined' && !DataValida.checarTodas(document.getElementById('ged-row-'+id))) return;
   const campos = { nome, peso_projeto: peso };
   if (tipo === 'exec') {
     campos.data_inicio_prev  = document.getElementById('ged-ini-prev-'+id)?.value || null;
@@ -1359,8 +1362,30 @@ async function _gedSalvarEtapa(id, tipo) {
 async function _gedExcluirEtapa(id, tipo, nome) {
   if (!confirm(`Excluir etapa "${nome}"?`)) return;
   const fn = tipo === 'exec' ? prjExecEtapaExcluir : prjEtapaExcluir;
-  try { await fn(id); document.getElementById('ged-row-'+id)?.remove(); }
+  try {
+    await fn(id);
+    document.getElementById('ged-row-'+id)?.remove();
+    // Renumera as ordens restantes para eliminar buracos
+    await _gedRenumerar(tipo, id);
+  }
   catch(e) { alert('Erro: '+e.message); }
+}
+
+// Renumera sequencialmente as etapas restantes (1, 2, 3...) no banco
+async function _gedRenumerar(tipo, idExcluido) {
+  const lista = (tipo === 'exec' ? _fichaProj.projeto_exec_etapas : _fichaProj.projeto_etapas) || [];
+  const restantes = lista.filter(e => e.id !== idExcluido).sort((a,b) => a.ordem - b.ordem);
+  const fnAtualizar = tipo === 'exec' ? prjExecEtapaAtualizar : prjEtapaAtualizar;
+  for (let i = 0; i < restantes.length; i++) {
+    const novaOrdem = i + 1;
+    if (restantes[i].ordem !== novaOrdem) {
+      await fnAtualizar(restantes[i].id, { ordem: novaOrdem });
+      restantes[i].ordem = novaOrdem;
+    }
+  }
+  // Atualiza cache local removendo a excluída
+  if (tipo === 'exec') _fichaProj.projeto_exec_etapas = restantes;
+  else _fichaProj.projeto_etapas = restantes;
 }
 
 async function _gedAdicionarEtapa(tipo) {
@@ -1411,6 +1436,7 @@ function _fecharModalEditarProjeto() { document.getElementById('prj-modal-root')
 async function _prjSalvarEdicao() {
   const titulo = document.getElementById('ep-titulo').value.trim();
   if (!titulo) { alert('Informe o título.'); return; }
+  if (typeof DataValida !== 'undefined' && !DataValida.checar('ep-prazo', 'Prazo final')) return;
   const prazo = document.getElementById('ep-prazo').value;
   const setor  = document.getElementById('ep-setor').value;
   try {

@@ -146,3 +146,59 @@ window.addEventListener('beforeunload', (e) => {
     e.returnValue = '';
   }
 });
+
+// ─── Validador central de datas ────────────────────────────────────────
+// Uso: DataValida.checar('met-fim', 'Data fim') → true/false (alerta se inválida)
+//      DataValida.checarTodas(container) → valida todos os inputs date do container
+const DataValida = (function () {
+  // Verifica se a string YYYY-MM-DD representa uma data real do calendário
+  function ehValida(iso) {
+    if (!iso) return true; // vazio é permitido (opcional)
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return false;
+    const [_, a, mes, dia] = m.map(Number);
+    const d = new Date(a, mes - 1, dia);
+    return d.getFullYear() === a && d.getMonth() === mes - 1 && d.getDate() === dia;
+  }
+
+  function checar(inputId, rotulo) {
+    const el = document.getElementById(inputId);
+    if (!el) return true;
+    const v = el.value;
+    if (ehValida(v)) return true;
+    alert(`${rotulo || 'Data'} inválida: verifique dia e mês (ex: 31/11 não existe).`);
+    el.focus();
+    return false;
+  }
+
+  // Valida todos os input[type=date] dentro de um container; retorna false se algum inválido
+  function checarTodas(container) {
+    const root = container ? (typeof container === 'string' ? document.getElementById(container) : container) : document;
+    if (!root) return true;
+    for (const el of root.querySelectorAll('input[type="date"]')) {
+      if (!ehValida(el.value)) {
+        const rotulo = el.closest('.field')?.querySelector('label')?.textContent || 'Data';
+        alert(`${rotulo} inválida: verifique dia e mês (ex: 31/11 não existe).`);
+        el.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return { ehValida, checar, checarTodas };
+})();
+
+// Aviso imediato ao sair de um campo de data com valor inválido (listener global)
+document.addEventListener('blur', (e) => {
+  const el = e.target;
+  if (el?.tagName === 'INPUT' && el.type === 'date' && el.value) {
+    if (!DataValida.ehValida(el.value)) {
+      el.style.borderColor = 'var(--crit)';
+      el.title = 'Data inválida';
+    } else {
+      el.style.borderColor = '';
+      el.title = '';
+    }
+  }
+}, true);
