@@ -521,7 +521,7 @@ async function _renderModalEtapa() {
   // fotos: exec usa projeto_fotos filtrado por exec_etapa_id; plan usa etapa.projeto_fotos
   const calcFn     = tipo === 'exec' ? prjExecCalcProgressoEtapa : prjCalcProgressoEtapa;
 
-  const check  = (etapa[checkKey]  || []).sort((a,b) => a.id>b.id?1:-1);
+  const check  = (etapa[checkKey]  || []).sort((a,b) => (a.ordem||0) - (b.ordem||0));
   const coments= (etapa[comentKey] || []).sort((a,b) => a.criado_em>b.criado_em?1:-1);
   const fotos = tipo === 'exec'
     ? (_fichaProj?.projeto_fotos||[]).filter(f => f.exec_etapa_id === etapa.id)
@@ -614,8 +614,13 @@ async function _renderModalEtapa() {
           </div>
           <div id="met-check-lista">
             ${check.length === 0 ? `<p class="page-sub">Nenhum item.</p>` :
-              check.map(c => `
+              check.map((c, _ci) => `
               <div class="prj-check-item" id="ci-${c.id}">
+                ${podeEditar ? `
+                <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+                  <button class="check-seta" ${_ci===0?'disabled':''} onclick="_checkMover('${c.id}','${tipo}',-1)" title="Mover para cima">▲</button>
+                  <button class="check-seta" ${_ci===check.length-1?'disabled':''} onclick="_checkMover('${c.id}','${tipo}',1)" title="Mover para baixo">▼</button>
+                </div>` : ''}
                 <label style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
                   <input type="checkbox" ${c.concluido?'checked':''} ${podeEditar?'':'disabled'}
                     onchange="_checkMarcar('${c.id}',this.checked,'${tipo}')" />
@@ -1054,7 +1059,10 @@ async function _checkAdicionar(etapaId, tipo) {
   const tabela = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
   const fn = isExec ? prjExecCheckCriar : prjCheckCriar;
   try {
-    const novo = await fn({ etapa_id: etapaId, descricao: desc.trim(), peso });
+    const _etapaOrd = _getEtapaAtual();
+    const _checkOrdKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
+    const _maxOrdem = Math.max(0, ...(((_etapaOrd?.[_checkOrdKey])||[]).map(x => x.ordem||0)));
+    const novo = await fn({ etapa_id: etapaId, descricao: desc.trim(), peso, ordem: _maxOrdem + 1 });
     const etapa = _getEtapaAtual();
     const checkKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
     if (etapa) { etapa[checkKey] = etapa[checkKey] || []; etapa[checkKey].push(novo); }
@@ -1096,6 +1104,29 @@ async function _checkMarcar(id, concluido, tipo) {
       }
     }
   } catch (e) { alert('Erro: ' + e.message); }
+}
+
+// Move item do checklist para cima (-1) ou baixo (+1)
+async function _checkMover(id, tipo, direcao) {
+  const isExec = tipo === 'exec';
+  const checkKey = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
+  const tabela = isExec ? 'projeto_exec_checklist' : 'projeto_checklist';
+  const etapa = _getEtapaAtual();
+  if (!etapa) return;
+  const lista = (etapa[checkKey] || []).sort((a,b) => (a.ordem||0)-(b.ordem||0));
+  const idx = lista.findIndex(x => x.id === id);
+  const alvo = idx + direcao;
+  if (idx < 0 || alvo < 0 || alvo >= lista.length) return;
+  const a = lista[idx], b = lista[alvo];
+  // Garante ordens distintas (dados legados podem ter null/0 duplicado)
+  if ((a.ordem||0) === (b.ordem||0)) { a.ordem = idx + 1; b.ordem = alvo + 1; }
+  try {
+    await prjCheckTrocarOrdem(tabela, a, b);
+    const tmp = a.ordem; a.ordem = b.ordem; b.ordem = tmp;
+    await _renderModalEtapa();
+  } catch (e) {
+    alert('Erro ao mover: ' + e.message);
+  }
 }
 
 async function _checkExcluir(id, tipo) {

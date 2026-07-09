@@ -5,7 +5,7 @@ const SETORES_PROJETOS = [
   'ARMAZÉM 01','ARMAZÉM 02','ARMAZÉM DE CAVACO',
   'CALDEIRA ICAVI','CALDEIRA MEPPAN',
   'CASA DE MÁQUINAS 01','CASA DE MÁQUINAS 02',
-  'ETE','EXPEDIÇÃO DE FARELO','EXPEDIÇÃO DE ÓLEO','EXTRAÇÃO','PELETIZAÇÃO','PREPARAÇÃO','GERAL'
+  'ETE','EXPEDIÇÃO DE FARELO','EXTRAÇÃO','PELETIZAÇÃO','PREPARAÇÃO','GERAL'
 ];
 
 // ══════════════════════════════════════════════════════════════════════
@@ -158,6 +158,15 @@ async function prjExecCheckMarcar(id, concluido) {
     concluido_em: concluido ? new Date().toISOString() : null
   }).eq('id', id);
   if (error) throw error;
+}
+
+// ── Reordenar checklist (troca ordem entre dois itens) ──
+async function prjCheckTrocarOrdem(tabela, itemA, itemB) {
+  // tabela: 'projeto_checklist' | 'projeto_exec_checklist'
+  const { error: e1 } = await sb.from(tabela).update({ ordem: itemB.ordem }).eq('id', itemA.id);
+  if (e1) throw e1;
+  const { error: e2 } = await sb.from(tabela).update({ ordem: itemA.ordem }).eq('id', itemB.id);
+  if (e2) throw e2;
 }
 
 // ── Comentários execução ──

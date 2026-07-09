@@ -31,6 +31,18 @@ const ROTAS = {
   biblioteca:            telaBiblioteca,
 };
 
+// Atualiza os dados da tela atual sem recarregar a página inteira
+function atualizarTela() {
+  if (typeof SaveBar !== 'undefined' && SaveBar.isDirty()) {
+    if (!confirm('Há alterações não salvas que serão perdidas ao atualizar. Continuar?')) return;
+    SaveBar.reset();
+  }
+  const btn = document.querySelector('.btn-refresh');
+  if (btn) { btn.classList.add('girando'); setTimeout(() => btn.classList.remove('girando'), 900); }
+  const rota = sessionStorage.getItem('rota') || (PERFIL?.papel === 'terceiro' ? 'projetos' : 'maquinas');
+  (ROTAS[rota] || telaMaquinas)();
+}
+
 function navegar(rota) {
   // Restrição por papel
   if (PERFIL?.papel === 'terceiro') {
@@ -161,6 +173,9 @@ async function iniciarApp() {
           <div class="topbar-nome">Painel de Gestão</div>
         </div>
         <div class="topbar-user">
+          <button class="btn-mini btn-refresh" onclick="atualizarTela()" title="Atualizar dados da tela">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
           <span class="user-nome">${escHtml(PERFIL.nome)}</span>
           <span class="user-papel ${PERFIL.papel}">${g?'Gestor':'Técnico'}</span>
           <button class="btn-mini" onclick="sair()">Sair</button>
