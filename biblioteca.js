@@ -152,8 +152,8 @@ async function _bibCarregarDuplicatas() {
           <p class="empty-sub">Os cadastros estão íntegros.</p>
         </div>` : ''}
 
-      ${_bibRenderGrupoTag('Máquinas — TAGs duplicadas', dupMaqTag, 'maq')}
-      ${_bibRenderGrupoTag('V&I — TAGs duplicadas', dupViTag, 'vi')}
+      ${_bibRenderGruposPorTipo(dupMaqTag, 'maq')}
+      ${_bibRenderGruposPorTipo(dupViTag, 'vi')}
       ${_bibRenderGrupoZip('Máquinas — ZIPs importados mais de uma vez', dupZipMaq, 'maq')}
       ${_bibRenderGrupoZip('V&I — ZIPs importados mais de uma vez', dupZipVI, 'vi')}
     `;
@@ -178,8 +178,9 @@ async function _bibDetectarTagsDupMaq() {
     _zip: m.importacoes?.nome_zip || '—',
     _qtdFotos: (m.fotos || []).length
   }));
-  const grupos = _bibAgruparPorTag(norm, 'tag');
-  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_MAQ));
+  // Agrupa por TIPO + TAG: mesma TAG em tipos diferentes (motor vs redutor) NÃO é duplicidade
+  const grupos = _bibAgruparPorTipoTag(norm, 'tipo');
+  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_MAQ.filter(f => f !== 'tipo')));
   return grupos;
 }
 
@@ -194,8 +195,8 @@ async function _bibDetectarTagsDupVI() {
     _zip: m.vi_importacoes?.nome_zip || '—',
     _qtdFotos: (m.vi_fotos || []).length
   }));
-  const grupos = _bibAgruparPorTag(norm, 'tag');
-  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_VI));
+  const grupos = _bibAgruparPorTipoTag(norm, 'dominio');
+  grupos.forEach(g => _bibCalcularDiferencas(g, _BIB_CAMPOS_VI.filter(f => f !== 'dominio')));
   return grupos;
 }
 
@@ -237,6 +238,26 @@ async function _bibDetectarZipsDupVI() {
   return _bibAgruparPor(lista, 'nome_zip');
 }
 
+// Agrupa por (campoTipo + TAG): duplicidade só dentro do mesmo tipo/domínio
+function _bibAgruparPorTipoTag(items, campoTipo) {
+  const g = {};
+  for (const it of items) {
+    if (!it.tag) continue;
+    const tipoVal = (it[campoTipo] || 'outro');
+    const k = tipoVal + '§' + String(it.tag).trim().toUpperCase();
+    g[k] = g[k] || [];
+    g[k].push(it);
+  }
+  return Object.entries(g)
+    .filter(([_, arr]) => arr.length > 1)
+    .map(([k, arr]) => ({
+      chave: k.split('§')[1],
+      _tipo: k.split('§')[0],
+      ocorrencias: arr
+    }))
+    .sort((a, b) => b.ocorrencias.length - a.ocorrencias.length);
+}
+
 function _bibAgruparPorTag(items, chave) {
   return _bibAgruparPor(items, chave, (val) => (val || '').trim().toUpperCase());
 }
@@ -255,6 +276,27 @@ function _bibAgruparPor(items, chave, normaliza) {
     .filter(([_, arr]) => arr.length > 1)
     .map(([k, arr]) => ({ chave: k, ocorrencias: arr }))
     .sort((a, b) => b.ocorrencias.length - a.ocorrencias.length);
+}
+
+// Separa os grupos por tipo de máquina/domínio e gera uma seção com cabeçalho para cada
+function _bibRenderGruposPorTipo(grupos, origem) {
+  if (!grupos.length) return '';
+  const NOMES_MAQ = {
+    motor_eletrico:'Motores elétricos', bomba:'Bombas', redutor:'Redutores',
+    ventilador:'Ventiladores', compressor:'Compressores',
+    transportador:'Transportadores', outro:'Outras máquinas'
+  };
+  const NOMES_VI  = { instrumento: 'Instrumentos', valvula: 'Válvulas' };
+  const porTipo = {};
+  for (const g of grupos) {
+    const t = g._tipo || 'outro';
+    porTipo[t] = porTipo[t] || [];
+    porTipo[t].push(g);
+  }
+  return Object.entries(porTipo).map(([t, gs]) => {
+    const nomeTipo = origem === 'maq' ? (NOMES_MAQ[t] || t) : (NOMES_VI[t] || t);
+    return _bibRenderGrupoTag(`${nomeTipo} — TAGs duplicadas`, gs, origem === 'maq' ? 'maq' : 'vi');
+  }).join('');
 }
 
 function _bibRenderGrupoTag(titulo, grupos, tipo) {
