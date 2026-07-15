@@ -170,7 +170,7 @@ const _BIB_CAMPOS_VI  = ['dominio','tipo','area','localizacao','fabricante','mod
 async function _bibDetectarTagsDupMaq() {
   const { data, error } = await sb.from('maquinas')
     .select('id, tag, tipo, area, localizacao, potencia, unidade_pot, fabricante, ' +
-            'rolamento_dianteiro, rolamento_traseiro, ex, status, criado_em, importacao_id, ' +
+            'rolamento_dianteiro, rolamento_traseiro, ex, status, criado_em, importacao_id, dup_verificado, ' +
             'importacoes(nome_zip), fotos!fotos_maquina_id_fkey(id)');
   if (error) throw error;
   const norm = (data || []).map(m => ({
@@ -188,7 +188,7 @@ async function _bibDetectarTagsDupVI() {
   if (typeof sb === 'undefined') return [];
   const { data, error } = await sb.from('vi_equipamentos')
     .select('id, tag, dominio, tipo, area, localizacao, fabricante, modelo, status, criado_em, ' +
-            'importacao_id, vi_importacoes(nome_zip), vi_fotos!equipamento_id(id)');
+            'importacao_id, dup_verificado, vi_importacoes(nome_zip), vi_fotos!equipamento_id(id)');
   if (error) return [];
   const norm = (data || []).map(m => ({
     ...m,
@@ -328,6 +328,7 @@ function _bibRenderGrupoTag(titulo, grupos, tipo) {
             <div class="tabela-wrap" style="box-shadow:none;border:none;background:transparent">
             <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:640px">
               <thead><tr style="color:var(--tx2)">
+                <th style="padding:3px 6px;width:28px" title="Verificado">✓</th>
                 <th style="text-align:left;padding:3px 6px">TAG</th>
                 ${tipo==='vi' ? '<th style="text-align:left;padding:3px 6px">Domínio</th>' : ''}
                 <th style="text-align:left;padding:3px 6px">Setor</th>
@@ -339,7 +340,11 @@ function _bibRenderGrupoTag(titulo, grupos, tipo) {
               </tr></thead>
               <tbody>
                 ${g.ocorrencias.map(o => `
-                  <tr style="border-top:1px solid var(--line)">
+                  <tr id="bib-row-${o.id}" style="border-top:1px solid var(--line);${o.dup_verificado?'background:var(--ok-bg)':''}">
+                    <td style="padding:5px 6px;text-align:center">
+                      <input type="checkbox" ${o.dup_verificado?'checked':''} title="Verificado — manter como está"
+                        onchange="_bibMarcarVerificado('${o.id}','${tipo}',this.checked)" />
+                    </td>
                     <td class="td-mono" style="padding:5px 6px">${escHtml(o.tag)}</td>
                     ${tipo==='vi' ? `<td style="padding:5px 6px">${escHtml(o.dominio || '—')}</td>` : ''}
                     <td style="padding:5px 6px">${escHtml(o.area || '—')}</td>
@@ -348,7 +353,7 @@ function _bibRenderGrupoTag(titulo, grupos, tipo) {
                     <td style="padding:5px 6px"><span class="badge-status ${o.status}">${o.status}</span></td>
                     <td style="padding:5px 6px">${new Date(o.criado_em).toLocaleDateString('pt-BR')}</td>
                     <td style="padding:5px 6px;text-align:right;white-space:nowrap">
-                      <button class="btn-mini" onclick="${tipo==='vi'?'viAbrirFicha':'abrirFicha'}('${o.id}')">Abrir</button>
+                      <button class="btn-mini" onclick="_bibAbrirNovaGuia('${o.id}','${tipo}')">Abrir ↗</button>
                       ${gestor ? `<button class="btn-mini btn-mini-danger" onclick="_bibExcluirItem('${o.id}','${tipo}','${escHtml(o.tag)}')">Excluir</button>` : ''}
                     </td>
                   </tr>`).join('')}
@@ -408,6 +413,25 @@ function _bibRenderGrupoZip(titulo, grupos, tipo) {
           </div>`).join('')}
       </div>
     </div>`;
+}
+
+// Marca/desmarca cadastro como verificado (mantido como está)
+async function _bibMarcarVerificado(id, tipo, marcado) {
+  const tabela = tipo === 'vi' ? 'vi_equipamentos' : 'maquinas';
+  try {
+    const { error } = await sb.from(tabela).update({ dup_verificado: marcado }).eq('id', id);
+    if (error) throw error;
+    const row = document.getElementById('bib-row-' + id);
+    if (row) row.style.background = marcado ? 'var(--ok-bg)' : '';
+  } catch (e) {
+    alert('Erro: ' + e.message);
+  }
+}
+
+// Abre a ficha do cadastro em uma nova guia (via hash de rota)
+function _bibAbrirNovaGuia(id, tipo) {
+  const hash = tipo === 'vi' ? '#vi=' + id : '#maq=' + id;
+  window.open(location.pathname + hash, '_blank');
 }
 
 // Excluir item duplicado (máquina ou equipamento V&I)

@@ -31,7 +31,12 @@ const ROTAS = {
   biblioteca:            telaBiblioteca,
 };
 
-// Atualiza os dados da tela atual sem recarregar a página inteira
+// Registrador da tela de detalhe atual (ficha aberta). As telas de lista usam a rota.
+// Preenchido pelos interceptores; limpo ao navegar entre rotas.
+let _refreshFn = null;
+
+// Atualiza os dados da tela atual sem recarregar a página inteira.
+// Se uma ficha/tela de detalhe está aberta, recarrega ELA (não volta para a lista).
 function atualizarTela() {
   if (typeof SaveBar !== 'undefined' && SaveBar.isDirty()) {
     if (!confirm('Há alterações não salvas que serão perdidas ao atualizar. Continuar?')) return;
@@ -39,6 +44,7 @@ function atualizarTela() {
   }
   const btn = document.querySelector('.btn-refresh');
   if (btn) { btn.classList.add('girando'); setTimeout(() => btn.classList.remove('girando'), 900); }
+  if (typeof _refreshFn === 'function') { _refreshFn(); return; }
   const rota = sessionStorage.getItem('rota') || (PERFIL?.papel === 'terceiro' ? 'projetos' : 'maquinas');
   (ROTAS[rota] || telaMaquinas)();
 }
@@ -66,6 +72,7 @@ function navegar(rota) {
   if (typeof SaveBar !== 'undefined') SaveBar.reset();
 
   window._ajudaChave = rota;
+  _refreshFn = null; // rota de lista: refresh volta a usar a rota
   sessionStorage.setItem('rota', rota);
   document.querySelectorAll('.nav-item').forEach(el =>
     el.classList.toggle('ativo', el.dataset.rota === rota));
@@ -234,7 +241,17 @@ async function iniciarApp() {
   const rotaInicial = PERFIL.papel === 'terceiro'
     ? (rotasTerceiro.includes(ultimaRota) ? ultimaRota : 'projetos')
     : (ultimaRota in ROTAS ? ultimaRota : 'maquinas');
-  navegar(rotaInicial);
+  // Deep-link via hash (#maq=ID ou #vi=ID) — usado por "Abrir em nova guia"
+  const _hMaq = location.hash.match(/^#maq=([\w-]+)/);
+  const _hVi  = location.hash.match(/^#vi=([\w-]+)/);
+  if ((_hMaq || _hVi) && PERFIL.papel !== 'terceiro') {
+    history.replaceState(null, '', location.pathname); // limpa o hash
+    sessionStorage.setItem('rota', _hMaq ? 'maquinas' : 'vi_equip');
+    if (_hMaq) abrirFicha(_hMaq[1]);
+    else viAbrirFicha(_hVi[1]);
+  } else {
+    navegar(rotaInicial);
+  }
 
   // Carrega badge de solicitações pendentes (gestor e técnico)
   if (PERFIL.papel !== 'terceiro' && typeof _atualizarBadgeSolicitacoes !== 'undefined') {
@@ -250,12 +267,39 @@ window.addEventListener('load', () => {
     if (typeof orig !== 'function') return;
     window[nomeFn] = function(...args) {
       _salvarScrollAntes(rotaLista);
+      // Registra esta tela de detalhe para o botão Atualizar recarregá-la no lugar
+      _refreshFn = () => orig.apply(this, args);
       return orig.apply(this, args);
     };
   };
   _interceptar('abrirFicha',         'maquinas');
   _interceptar('viAbrirFicha',       'vi_equip');
   _interceptar('abrirFichaProjeto',  'projetos');
+  // Telas de detalhe sem scroll de lista associado: registram só o refresh
+  const _interceptarRefresh = (nomeFn) => {
+    const orig = window[nomeFn];
+    if (typeof orig !== 'function') return;
+    window[nomeFn] = function(...args) {
+      _refreshFn = () => orig.apply(this, args);
+      return orig.apply(this, args);
+    };
+  };
+  _interceptarRefresh('rdoTelaProjeto');
+  _interceptarRefresh('telaEtapa');
+  _interceptarRefresh('viTelaEtapa');
+  // Telas de lista (alvo dos botões "Voltar"): limpam o registrador,
+  // para o Atualizar voltar a recarregar a lista via rota
+  const _interceptarLista = (nomeFn) => {
+    const orig = window[nomeFn];
+    if (typeof orig !== 'function') return;
+    window[nomeFn] = function(...args) {
+      _refreshFn = null;
+      return orig.apply(this, args);
+    };
+  };
+  _interceptarLista('telaProjetos');
+  _interceptarLista('telaMaquinas');
+  _interceptarLista('viTelaEquip');
 });
 
 (async () => {
