@@ -23,7 +23,7 @@ function telaMatriz(cat) {
 
     <div class="cat-tabs">
       ${Object.entries(CATEGORIAS).map(([k, v]) => `
-        <button class="cat-tab ${k === matrizCategoria ? 'ativo' : ''} ${k === 'ex' ? 'tab-ex' : ''}"
+        <button class="cat-tab ${k === matrizCategoria ? 'ativo' : ''} ${v.ehEx ? 'tab-ex' : ''}"
           onclick="telaMatriz('${k}')">${v.titulo}</button>
       `).join('')}
     </div>

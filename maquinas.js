@@ -1,8 +1,12 @@
 'use strict';
 // ─── maquinas.js — telas de consulta por tipo ──────────────────────────
 
+// EX é escopo separado POR TIPO: uma motobomba EX gera dois cadastros
+// independentes (motor EX e bomba EX), cada um com seu próprio escopo de revisão.
 const CATEGORIAS = {
-  ex:        { titulo: 'Motores EX',  sub: 'Equipamentos à prova de explosão — processo próprio de movimentação para oficinas externas', filtro: { ex: true } },
+  ex:        { titulo: 'Motores EX',  ehEx: true, sub: 'Motores à prova de explosão — processo próprio de movimentação para oficinas externas', filtro: { ex: true, tipo: 'motor_eletrico' } },
+  bombas_ex: { titulo: 'Bombas EX',   ehEx: true, sub: 'Bombas à prova de explosão — escopo próprio, independente do motor acoplado', filtro: { ex: true, tipo: 'bomba' } },
+  outros_ex: { titulo: 'Outros EX',   ehEx: true, sub: 'Demais equipamentos à prova de explosão', filtro: { ex: true, tipos: ['redutor','ventilador','compressor','transportador','outro'] } },
   motores:   { titulo: 'Motores',     sub: 'Motores elétricos convencionais', filtro: { ex: false, tipo: 'motor_eletrico' } },
   bombas:    { titulo: 'Bombas',      sub: 'Bombas de processo e utilidades', filtro: { ex: false, tipo: 'bomba' } },
   redutores: { titulo: 'Redutores',   sub: 'Redutores de velocidade', filtro: { ex: false, tipo: 'redutor' } },
@@ -31,7 +35,7 @@ function telaMaquinas(cat) {
 
     <div class="cat-tabs">
       ${Object.entries(CATEGORIAS).map(([k, v]) => `
-        <button class="cat-tab ${k === categoriaAtual ? 'ativo' : ''} ${k === 'ex' ? 'tab-ex' : ''}"
+        <button class="cat-tab ${k === categoriaAtual ? 'ativo' : ''} ${v.ehEx ? 'tab-ex' : ''}"
           onclick="telaMaquinas('${k}')">${v.titulo}</button>
       `).join('')}
     </div>

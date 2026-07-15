@@ -15,7 +15,7 @@ function telaPrazos(cat) {
 
     <div class="cat-tabs">
       ${Object.entries(CATEGORIAS).map(([k, v]) => `
-        <button class="cat-tab ${k === prazosCategoria ? 'ativo' : ''} ${k === 'ex' ? 'tab-ex' : ''}"
+        <button class="cat-tab ${k === prazosCategoria ? 'ativo' : ''} ${v.ehEx ? 'tab-ex' : ''}"
           onclick="telaPrazos('${k}')">${v.titulo}</button>
       `).join('')}
     </div>

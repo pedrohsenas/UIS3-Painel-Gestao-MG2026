@@ -6,7 +6,7 @@ let _chartCurvaS = null;
 
 const DASH_FILTROS = {
   todas: { titulo: 'Todas', filtro: {} },
-  ...Object.fromEntries(Object.entries(CATEGORIAS).map(([k,v]) => [k, { titulo: v.titulo, filtro: v.filtro }]))
+  ...Object.fromEntries(Object.entries(CATEGORIAS).map(([k,v]) => [k, { titulo: v.titulo, filtro: v.filtro, ehEx: v.ehEx }]))
 };
 
 function telaDashboardReal(cat) {
@@ -21,7 +21,7 @@ function telaDashboardReal(cat) {
 
     <div class="cat-tabs">
       ${Object.entries(DASH_FILTROS).map(([k, v]) => `
-        <button class="cat-tab ${k === dashCategoria ? 'ativo' : ''} ${k === 'ex' ? 'tab-ex' : ''}"
+        <button class="cat-tab ${k === dashCategoria ? 'ativo' : ''} ${v.ehEx ? 'tab-ex' : ''}"
           onclick="telaDashboardReal('${k}')">${v.titulo}</button>
       `).join('')}
     </div>

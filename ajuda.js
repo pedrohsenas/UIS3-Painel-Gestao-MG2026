@@ -19,7 +19,7 @@ const AJUDAS = {
     titulo: 'Máquinas',
     texto: `<p>Consulta de todas as máquinas importadas, organizadas por categoria.</p>
 <ul>
-<li><strong>Abas:</strong> Motores EX (equipamentos à prova de explosão), Motores, Bombas, Redutores e Outras máquinas.</li>
+<li><strong>Abas:</strong> Motores EX, Bombas EX e Outros EX (equipamentos à prova de explosão — cada tipo é um escopo separado; uma motobomba EX tem cadastro de motor e de bomba independentes), Motores, Bombas, Redutores e Outras máquinas.</li>
 <li><strong>Busca:</strong> filtre por TAG, área, localização ou fabricante em tempo real.</li>
 <li><strong>Barra de etapas:</strong> mostra o progresso (x/7) de cada máquina — verde quando completa.</li>
 <li><strong>Clique em uma linha</strong> para abrir a ficha completa da máquina.</li>
