@@ -1,12 +1,8 @@
 'use strict';
 // ─── maquinas.js — telas de consulta por tipo ──────────────────────────
 
-// EX é escopo separado POR TIPO: uma motobomba EX gera dois cadastros
-// independentes (motor EX e bomba EX), cada um com seu próprio escopo de revisão.
 const CATEGORIAS = {
-  ex:        { titulo: 'Motores EX',  ehEx: true, sub: 'Motores à prova de explosão — processo próprio de movimentação para oficinas externas', filtro: { ex: true, tipo: 'motor_eletrico' } },
-  bombas_ex: { titulo: 'Bombas EX',   ehEx: true, sub: 'Bombas à prova de explosão — escopo próprio, independente do motor acoplado', filtro: { ex: true, tipo: 'bomba' } },
-  outros_ex: { titulo: 'Outros EX',   ehEx: true, sub: 'Demais equipamentos à prova de explosão', filtro: { ex: true, tipos: ['redutor','ventilador','compressor','transportador','outro'] } },
+  ex:        { titulo: 'Motores EX',  sub: 'Equipamentos à prova de explosão — processo próprio de movimentação para oficinas externas', filtro: { ex: true } },
   motores:   { titulo: 'Motores',     sub: 'Motores elétricos convencionais', filtro: { ex: false, tipo: 'motor_eletrico' } },
   bombas:    { titulo: 'Bombas',      sub: 'Bombas de processo e utilidades', filtro: { ex: false, tipo: 'bomba' } },
   redutores: { titulo: 'Redutores',   sub: 'Redutores de velocidade', filtro: { ex: false, tipo: 'redutor' } },
@@ -22,6 +18,7 @@ const TIPOS_NOMES = {
 let categoriaAtual = 'ex';
 let buscaAtual = '';
 let statusAtual = 'ativa';
+let areaAtual = '';  // '' = todas as áreas
 
 function telaMaquinas(cat) {
   if (cat) categoriaAtual = cat;
@@ -35,7 +32,7 @@ function telaMaquinas(cat) {
 
     <div class="cat-tabs">
       ${Object.entries(CATEGORIAS).map(([k, v]) => `
-        <button class="cat-tab ${k === categoriaAtual ? 'ativo' : ''} ${v.ehEx ? 'tab-ex' : ''}"
+        <button class="cat-tab ${k === categoriaAtual ? 'ativo' : ''} ${k === 'ex' ? 'tab-ex' : ''}"
           onclick="telaMaquinas('${k}')">${v.titulo}</button>
       `).join('')}
     </div>
@@ -43,8 +40,12 @@ function telaMaquinas(cat) {
     <p class="page-sub" style="margin-bottom:14px">${c.sub}</p>
 
     <div class="filtros-bar">
-      <input type="text" id="filtro-busca" placeholder="Buscar por TAG, área ou fabricante..."
+      <input type="text" id="filtro-busca" placeholder="Buscar por TAG, área, fabricante ou ID..."
         value="${escHtml(buscaAtual)}" oninput="buscaAtual=this.value;filtrarTabela()" style="max-width:320px" />
+      <select id="filtro-area" onchange="areaAtual=this.value;filtrarTabela()" style="max-width:200px">
+        <option value="" ${areaAtual===''?'selected':''}>Todas as áreas</option>
+        ${(typeof AREAS_LISTA!=='undefined'?AREAS_LISTA:[]).map(a=>`<option value="${a}" ${areaAtual===a?'selected':''}>${a}</option>`).join('')}
+      </select>
       <select id="filtro-status" onchange="statusAtual=this.value;carregarMaquinas()" style="max-width:160px">
         <option value="ativa" ${statusAtual==='ativa'?'selected':''}>Ativas</option>
         <option value="arquivada" ${statusAtual==='arquivada'?'selected':''}>Arquivadas</option>
@@ -67,7 +68,7 @@ async function carregarMaquinas() {
     if (statusAtual) filtro.status = statusAtual;
     const lista = await dbListarMaquinasComFoto(filtro);
     window._maquinasCache = lista;
-    renderTabelaMaquinas(lista);
+    filtrarTabela();
   } catch (e) {
     el.innerHTML = `<div class="result-card erro"><p>Erro: ${e.message}</p></div>`;
   }
@@ -75,13 +76,15 @@ async function carregarMaquinas() {
 
 function filtrarTabela() {
   const termo = buscaAtual.toLowerCase();
-  const lista = (window._maquinasCache || []).filter(m =>
-    !termo ||
-    (m.tag||'').toLowerCase().includes(termo) ||
-    (m.area||'').toLowerCase().includes(termo) ||
-    (m.localizacao||'').toLowerCase().includes(termo) ||
-    (m.fabricante||'').toLowerCase().includes(termo)
-  );
+  const lista = (window._maquinasCache || []).filter(m => {
+    if (areaAtual && (m.area||'') !== areaAtual) return false;
+    if (!termo) return true;
+    return (m.tag||'').toLowerCase().includes(termo) ||
+      (m.area||'').toLowerCase().includes(termo) ||
+      (m.localizacao||'').toLowerCase().includes(termo) ||
+      (m.fabricante||'').toLowerCase().includes(termo) ||
+      (m.codigo_seq||'').toLowerCase().includes(termo);
+  });
   renderTabelaMaquinas(lista);
 }
 
@@ -115,7 +118,7 @@ function renderTabelaMaquinas(lista) {
     <div class="tabela-wrap">
       <table class="tabela">
         <thead><tr>
-          <th>TAG</th><th>Tipo</th><th>Área</th><th>Foto</th><th>Potência</th>
+          <th>ID</th><th>TAG</th><th>Tipo</th><th>Área</th><th>Foto</th><th>Potência</th>
           <th>Estado</th><th>Etapas</th><th></th>
         </tr></thead>
         <tbody>
@@ -124,6 +127,7 @@ function renderTabelaMaquinas(lista) {
             const pct = Math.round(p.done / p.total * 100);
             return `
             <tr class="linha-click ${m.status === 'arquivada' ? 'linha-arquivada' : ''}" onclick="abrirFicha('${m.id}')">
+              <td class="td-mono td-codigo">${escHtml(m.codigo_seq || '—')}</td>
               <td class="td-mono">${escHtml(m.tag)}${m.ex ? ' <span class="ex-badge">EX</span>' : ''}</td>
               <td>${TIPOS_NOMES[m.tipo] || m.tipo}</td>
               <td>${escHtml(m.area)}${m.localizacao ? '<br><span class="td-sub">' + escHtml(m.localizacao) + '</span>' : ''}</td>

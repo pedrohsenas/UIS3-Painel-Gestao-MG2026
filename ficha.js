@@ -37,6 +37,7 @@ function renderFicha() {
     <div class="ficha-head">
       <button class="btn-mini" onclick="telaMaquinas()">‹ Voltar</button>
       <div class="ficha-titulo">
+        ${m.codigo_seq ? `<span class="ficha-id" title="Identificador do sistema (não editável)">${escHtml(m.codigo_seq)}</span>` : ''}
         <span class="ficha-tag">${escHtml(m.tag)}</span>
         ${m.ex ? '<span class="ex-badge">EX</span>' : ''}
         <span class="badge-status ${m.status}">${m.status === 'ativa' ? 'Ativa' : 'Arquivada'}</span>
