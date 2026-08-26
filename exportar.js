@@ -3,7 +3,9 @@
 
 // Campos disponíveis por domínio: { chave: { rotulo, valor(m) } }
 const EXP_CAMPOS_MAQUINA = {
+  codigo_seq:  { rotulo: 'ID', valor: m => m.codigo_seq || '' },
   tag:         { rotulo: 'TAG', valor: m => m.tag },
+  tag_ou_id:   { rotulo: 'TAG/ID', valor: m => (m.tag && String(m.tag).trim()) ? m.tag : (m.codigo_seq || '') },
   tipo:        { rotulo: 'Tipo', valor: m => TIPOS_NOMES[m.tipo] || m.tipo },
   ex:          { rotulo: 'EX', valor: m => m.ex ? 'SIM' : 'NÃO' },
   area:        { rotulo: 'Área', valor: m => m.area },
@@ -32,6 +34,7 @@ const EXP_CAMPOS_MAQUINA = {
 
 const EXP_CAMPOS_VI = {
   tag:         { rotulo: 'TAG', valor: m => m.tag },
+  tag_ou_id:   { rotulo: 'TAG/ID', valor: m => (m.tag && String(m.tag).trim()) ? m.tag : (m.codigo_seq || '') },
   dominio:     { rotulo: 'Domínio', valor: m => m.dominio === 'valvula' ? 'Válvula' : 'Instrumento' },
   tipo:        { rotulo: 'Tipo', valor: m => m.tipo },
   area:        { rotulo: 'Área', valor: m => m.area },
@@ -54,12 +57,12 @@ const EXP_CAMPOS_VI = {
 };
 
 // Campos marcados por padrão
-const EXP_PADRAO_MAQ = ['tag','tipo','area','localizacao','potencia','unidade_pot','fabricante','rolamento_dianteiro','rolamento_traseiro'];
+const EXP_PADRAO_MAQ = ['codigo_seq','tag','tipo','area','localizacao','potencia','unidade_pot','fabricante','rolamento_dianteiro','rolamento_traseiro'];
 const EXP_PADRAO_VI  = ['tag','dominio','tipo','area','localizacao','fabricante','modelo','criticidade'];
 
 let expFonte = 'maquinas';        // 'maquinas' | 'vi'
-let expFiltroArea = '';
-let expFiltroTipo = '';
+let expFiltroAreas = [];          // [] = todas; senão lista de áreas marcadas
+let expFiltroTipo = '';           // usa chave composta (ver expTipoChave)
 let expDados = [];                 // equipamentos carregados (ativos)
 let expSelecao = {};              // { id: true }
 let expCampos = {};              // { chave: true }
@@ -82,7 +85,7 @@ function telaExportar() {
 }
 
 function expTrocarFonte(f) {
-  expFonte = f; expFiltroArea = ''; expFiltroTipo = '';
+  expFonte = f; expFiltroAreas = []; expFiltroTipo = '';
   expSelecao = {}; expCampos = {};
   telaExportar();
 }
@@ -123,10 +126,17 @@ function expTipoNome(m) {
   return m.tipo || '—';
 }
 
+// Chave composta que separa EX de não-EX (só para máquinas)
+function expTipoChave(m) {
+  const base = expTipoNome(m);
+  if (expFonte === 'maquinas' && m.ex) return base + ' EX';
+  return base;
+}
+
 function expListaFiltrada() {
   return expDados.filter(m =>
-    (!expFiltroArea || (m.area || '') === expFiltroArea) &&
-    (!expFiltroTipo || expTipoNome(m) === expFiltroTipo)
+    (expFiltroAreas.length === 0 || expFiltroAreas.includes(m.area || '')) &&
+    (!expFiltroTipo || expTipoChave(m) === expFiltroTipo)
   );
 }
 
@@ -134,7 +144,7 @@ function expRender() {
   const el = document.getElementById('exp-area');
   const campos = expCamposDef();
   const areas = [...new Set(expDados.map(m => m.area || '').filter(Boolean))].sort();
-  const tipos = [...new Set(expDados.map(m => expTipoNome(m)))].sort();
+  const tipos = [...new Set(expDados.map(m => expTipoChave(m)))].sort();
   const lista = expListaFiltrada();
   const nSel = lista.filter(m => expSelecao[m.id]).length;
 
@@ -158,17 +168,24 @@ function expRender() {
 
         <div class="card-sec">
           <h3 class="card-sec-titulo">2. Filtros</h3>
-          <div class="row2">
-            <div class="field"><label>Área</label>
-              <select onchange="expFiltroArea=this.value;expRender()">
-                <option value="">Todas</option>
-                ${areas.map(a => `<option value="${escHtml(a)}"${expFiltroArea===a?' selected':''}>${escHtml(a)}</option>`).join('')}
-              </select></div>
-            <div class="field"><label>Tipo</label>
-              <select onchange="expFiltroTipo=this.value;expRender()">
-                <option value="">Todos</option>
-                ${tipos.map(t => `<option value="${escHtml(t)}"${expFiltroTipo===t?' selected':''}>${escHtml(t)}</option>`).join('')}
-              </select></div>
+          <div class="field"><label>Tipo</label>
+            <select onchange="expFiltroTipo=this.value;expRender()">
+              <option value="">Todos</option>
+              ${tipos.map(t => `<option value="${escHtml(t)}"${expFiltroTipo===t?' selected':''}>${escHtml(t)}</option>`).join('')}
+            </select></div>
+          <div class="field" style="margin-top:10px">
+            <label>Áreas ${expFiltroAreas.length ? `(${expFiltroAreas.length} selec.)` : '(todas)'}</label>
+            <div class="exp-areas-box">
+              ${areas.map(a => `
+                <label class="exp-area-item ${expFiltroAreas.includes(a)?'on':''}">
+                  <input type="checkbox" ${expFiltroAreas.includes(a)?'checked':''} onchange="expToggleArea('${escHtml(a).replace(/'/g,"\\'")}')" />
+                  <span>${escHtml(a)}</span>
+                </label>`).join('')}
+            </div>
+            <div class="exp-mini-acoes" style="margin-top:6px">
+              <button class="btn-mini" onclick="expAreasTodas(true)">Marcar todas</button>
+              <button class="btn-mini" onclick="expAreasTodas(false)">Limpar</button>
+            </div>
           </div>
         </div>
 
@@ -194,8 +211,8 @@ function expRender() {
             ${lista.length ? lista.map(m => `
               <label class="exp-eq-item">
                 <input type="checkbox" ${expSelecao[m.id] ? 'checked' : ''} onchange="expToggleEq('${m.id}')" />
-                <span class="td-mono">${escHtml(m.tag)}</span>
-                <span class="exp-eq-sub">${escHtml(expTipoNome(m))}${m.area ? ' · ' + escHtml(m.area) : ''}</span>
+                <span class="td-mono">${escHtml((m.tag && String(m.tag).trim()) ? m.tag : (m.codigo_seq || '—'))}</span>
+                <span class="exp-eq-sub">${escHtml(expTipoChave(m))}${m.area ? ' · ' + escHtml(m.area) : ''}</span>
               </label>`).join('') : '<p class="page-sub">Nenhum equipamento com esses filtros</p>'}
           </div>
         </div>
@@ -214,6 +231,21 @@ function expTodosCampos(v) {
 function expToggleEq(id) { expSelecao[id] = !expSelecao[id]; document.getElementById('exp-cont').textContent = expListaFiltrada().filter(m=>expSelecao[m.id]).length; }
 function expSelTodos(v) {
   expListaFiltrada().forEach(m => expSelecao[m.id] = v);
+  expRender();
+}
+
+function expToggleArea(a) {
+  const i = expFiltroAreas.indexOf(a);
+  if (i >= 0) expFiltroAreas.splice(i, 1);
+  else expFiltroAreas.push(a);
+  expRender();
+}
+function expAreasTodas(marcar) {
+  if (marcar) {
+    expFiltroAreas = [...new Set(expDados.map(m => m.area || '').filter(Boolean))];
+  } else {
+    expFiltroAreas = [];
+  }
   expRender();
 }
 
@@ -350,7 +382,7 @@ async function expGerarPDF() {
 
     // TAG
     doc.setFontSize(12); doc.setFont(undefined, 'bold');
-    doc.text(String(itens[i].m.tag || '—'), x + 4, y + 7);
+    doc.text(String((itens[i].m.tag && String(itens[i].m.tag).trim()) ? itens[i].m.tag : (itens[i].m.codigo_seq || '—')), x + 4, y + 7);
 
     // foto
     const it = itens[i];
